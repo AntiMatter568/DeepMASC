@@ -1,0 +1,24 @@
+name: AutoClass3D
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - cudatoolkit=11.8
+  - pip
+  - python=3.10
+  - pytorch
+  - pytorch-cuda=11.8
+  - pip:
+      - biopython
+      - numba
+      - numpy
+      - scipy
+      - tqdm
+      - ortools
+      - mrcfile
+      - progress
+      - numba-progress
+      - loguru
