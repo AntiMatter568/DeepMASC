@@ -71,9 +71,17 @@ if __name__ == "__main__":
                     break
                 if err:
                     logger.error(err.strip())  # Log stderr
-
-        real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-        x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+        try:
+            real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
+        except:
+            logger.warning("Failed to calculate real space CC, maybe the map is empty")
+            real_space_cc = 0.0
+            
+        try:
+            x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+        except:
+            logger.warning("Failed to calculate FSC, maybe the map is empty")
+            cutoff_05 = 0.0
         map_list.append([mrc_file, real_space_cc, cutoff_05])
 
     map_list.sort(key=lambda x: x[1], reverse=True)

@@ -9,6 +9,10 @@ def my_reform_1a(input_mrc, output_mrc, use_gpu=False):
     with torch.no_grad() and torch.cuda.amp.autocast(enabled=use_gpu):
 
         with mrcfile.open(input_mrc, permissive=True) as orig_map:
+            
+            if np.allclose(orig_map.data, 0.0):
+                print("Input map is all zeros, exiting")
+                exit()
 
             orig_voxel_size = np.array([orig_map.voxel_size.x, orig_map.voxel_size.y, orig_map.voxel_size.z])
 

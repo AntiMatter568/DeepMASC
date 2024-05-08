@@ -60,9 +60,11 @@ if __name__ == "__main__":
         os.chdir(running_dir)
         from data_processing.Unify_Map import Unify_Map
 
+        print("Unifying map", cur_map_path, "to", os.path.join(save_path, map_name + "_unified.mrc"))
         cur_map_path = Unify_Map(cur_map_path, os.path.join(save_path, map_name + "_unified.mrc"))
         from data_processing.Resize_Map import Resize_Map
 
+        print("Resizing map", cur_map_path, "to", os.path.join(save_path, map_name + ".mrc"))
         cur_map_path = Resize_Map(cur_map_path, os.path.join(save_path, map_name + ".mrc"))
         if params["contour"] < 0:
             # change contour level to 0 and increase all the density
