@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    logger.info("Input job folder path: " + args.F)
+    logger.info("Input job folder path: ", args.F)
 
     CRYOREAD_PATH = "./CryoREAD/main.py"
 

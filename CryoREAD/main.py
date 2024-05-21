@@ -25,6 +25,7 @@ if __name__ == "__main__":
 
         gpu_id = params["gpu"]
         if gpu_id is not None:
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = gpu_id
         cur_map_path = os.path.abspath(params["F"])
         # process the map path if it's ending with .gz
