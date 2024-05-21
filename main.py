@@ -11,8 +11,8 @@ if __name__ == "__main__":
     logger.add("AutoClass3D.log")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-F", type=str, help="Input job folder path containing all MRC files", required=True)
-    parser.add_argument("-G", type=str, help="GPU ID to use for prediction", required=True)
+    parser.add_argument("-F", nargs="+", type=str, help="List of input mrc files", required=True)
+    parser.add_argument("-G", type=str, help="GPU ID to use for prediction", required=False, default="")
     parser.add_argument("-J", type=str, help="Job name / output folder name", required=True)
 
     args = parser.parse_args()
@@ -21,12 +21,18 @@ if __name__ == "__main__":
 
     CRYOREAD_PATH = "./CryoREAD/main.py"
 
-    mrc_files = glob(args.F + "/*.mrc")
+    # mrc_files = glob(args.F + "/*.mrc")
+
+    mrc_files = args.F
+    # check if files exists
+    for mrc_file in mrc_files:
+        if not os.path.exists(mrc_file):
+            logger.error("Input mrc file not found: " + mrc_file)
+            exit(1)
 
     OUTDIR = str(Path("./CryoREAD_Predict_Result").absolute() / args.J)
     os.makedirs(OUTDIR, exist_ok=True)
 
-    # print(mrc_files)
     logger.info("MRC files count: " + str(len(mrc_files)))
     logger.info("MRC files path:\n" + "\n".join(mrc_files))
 
@@ -55,7 +61,8 @@ if __name__ == "__main__":
                 f"--resolution=8.0",
                 f"--output={curr_out_dir}",
             ]
-            process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       universal_newlines=True)
 
             while True:
                 output = process.stdout.readline()
@@ -76,7 +83,7 @@ if __name__ == "__main__":
         except:
             logger.warning("Failed to calculate real space CC, maybe the map is empty")
             real_space_cc = 0.0
-            
+
         try:
             x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
         except:

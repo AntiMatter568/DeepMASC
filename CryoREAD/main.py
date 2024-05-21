@@ -70,13 +70,15 @@ if __name__ == "__main__":
             # change contour level to 0 and increase all the density
             from data_processing.map_utils import increase_map_density
 
-            cur_map_path = increase_map_density(cur_map_path, os.path.join(save_path, map_name + "_increase.mrc"), params["contour"])
+            cur_map_path = increase_map_density(cur_map_path, os.path.join(save_path, map_name + "_increase.mrc"),
+                                                params["contour"])
             params["contour"] = 0
         # segment map to remove those useless regions
         from data_processing.map_utils import segment_map
 
         cur_new_map_path = os.path.join(save_path, map_name + "_segment.mrc")
-        cur_map_path = segment_map(cur_map_path, cur_new_map_path, contour=0)  # save the final prediction prob array space
+        cur_map_path = segment_map(cur_map_path, cur_new_map_path,
+                                   contour=0)  # save the final prediction prob array space
 
         # do a pre check to notify user errors for contour
         with mrcfile.open(cur_map_path, permissive=True) as mrc:
@@ -131,7 +133,8 @@ if __name__ == "__main__":
 
         Gen_MaskProtein_map(chain_prob, cur_map_path, mask_map_path, params["contour"], threshold=0.3)
         if params["prediction_only"]:
-            print("Our prediction results are saved in %s with mrc format for visualization check." % save_path_2nd_stage)
+            print(
+                "Our prediction results are saved in %s with mrc format for visualization check." % save_path_2nd_stage)
             exit()
         # graph based atomic structure modeling
         gaussian_bandwidth = params["g"]  # use 3
@@ -142,7 +145,8 @@ if __name__ == "__main__":
         graph_save_path = os.path.join(save_path, "graph_atomic_modeling")
         mkdir(graph_save_path)
 
-        Build_Unet_Graph(cur_map_path, chain_predict_path, fasta_path, graph_save_path, gaussian_bandwidth, dcut, rdcut, params)
+        Build_Unet_Graph(cur_map_path, chain_predict_path, fasta_path, graph_save_path, gaussian_bandwidth, dcut, rdcut,
+                         params)
     elif params["mode"] == 1:
 
         # structure refinement pipeline
