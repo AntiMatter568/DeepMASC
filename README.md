@@ -14,12 +14,12 @@ conda env create -f environment.yml
 
 ## Arguments (All required)
 ```
--F: Path to the folder that contain all the input mrc files
--G: The GPU ID to use for the computation
+-F: Class3D MRC files to be examine, separated by space
+-G: The GPU ID to use for the computation, use comma to seperate multiple GPUs
 -J: The Job Name
 ```
 
 ## Example
 ```
-python main.py -F ./Class3D/job052 -G 1 -J job052_select
+python main.py -F ./Class3D/job052/class1.mrc ./Class3D/job052/class2.mrc ./Class3D/job052/class3.mrc -G 0,1,2 -J job052_select
 ```
