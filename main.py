@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("-F", nargs="+", type=str, help="List of input mrc files", required=True)
     parser.add_argument("-G", type=str, help="GPU ID to use for prediction", required=False, default="")
     parser.add_argument("-J", type=str, help="Job name / output folder name", required=True)
+    parser.add_argument("-B", type=int, help="Batch size to use", required=False, default=4)
 
     args = parser.parse_args()
 
@@ -56,7 +57,7 @@ if __name__ == "__main__":
                 f"-F={mrc_file}",
                 "--contour=0",
                 f"--gpu={args.G}",
-                f"--batch_size=4",
+                f"--batch_size={args.B}",
                 f"--prediction_only",
                 f"--resolution=8.0",
                 f"--output={curr_out_dir}",
