@@ -122,17 +122,20 @@ def gmm_mask(input_map_path, output_folder, num_components=3, use_grad=False, n_
             # plot mean
             # mean = g.means_[pred, 0]
             # ax.axvline(mean, label=f"Mean_{pred}")
+            ax.legend(loc="upper right")
         fig.tight_layout()
-        print("Saving figure to", os.path.join(output_folder, "hist_by_component.png"))
-        fig.savefig(os.path.join(output_folder, "hist_by_component.png"))
+        # print("Saving figure to", os.path.join(output_folder, "hist_by_component.png"))
+        fig.savefig(os.path.join(output_folder, Path(input_map_path).stem + "_hist_by_components.png"))
 
     # generate a mask to keep only the component with the largest variance
     mask = np.zeros_like(map_data)
     # mask[np.nonzero(masked_prot_data)] = (preds == np.argmax(g.means_[:, 0].flatten()))
 
-    ind = np.argpartition(g.means_[:, 0].flatten(), -3)[-3:]
+    # ind = np.argpartition(g.means_[:, 0].flatten(), -3)[-3:]
+    # choose ind that is closest to 0
+    ind = np.argmin(np.abs(g.means_[:, 0].flatten()))
 
-    print("ind", ind)
+    print("ind to remove", ind)
 
     # mask[np.nonzero(map_data)] = preds in ind
     print(
@@ -142,15 +145,20 @@ def gmm_mask(input_map_path, output_folder, num_components=3, use_grad=False, n_
     )
     print("Variances: ", g.covariances_.shape, g.covariances_[:, 0, 0])
 
-    mask[np.nonzero(map_data)] = (preds == ind[0]) | (preds == ind[1]) | (preds == ind[2])
+    # mask[np.nonzero(map_data)] = (preds == ind[0]) | (preds == ind[1]) | (preds == ind[2])
+    mask[np.nonzero(map_data)] = (preds != ind)
 
-    print("Nonzero", np.count_nonzero(mask))
+    noise_comp = map_data[np.nonzero(map_data)][preds == ind]
+    # 98 percentile
+    # revised_contour = np.percentile(noise_comp, 98)
+    revised_contour = np.max(noise_comp)
+
+    print("Revised contour", revised_contour)
+
+    print("Remaining mask region size in voxels", np.count_nonzero(mask))
 
     # use opening to remove small artifacts
-    mask = opening(mask.astype(bool))
-    # gaussian_mask = gaussian(mask.astype(float), sigma=3, preserve_range=True)
-    # mask = np.clip(gaussian_mask + mask, 0, 1)
-    # mask[mask < 1] = mask[mask < 1] / np.max(mask[mask < 1])
+    mask = opening(mask.astype(bool), ball(3))
     new_data = map_data * mask
     new_data_non_zero = new_data[np.nonzero(new_data)]
 
@@ -158,15 +166,15 @@ def gmm_mask(input_map_path, output_folder, num_components=3, use_grad=False, n_
     save_mrc(input_map_path, new_data,
              os.path.join(output_folder, Path(input_map_path).stem + "_mask.mrc"))
 
-    if use_grad == True:
-        # use 1 sigma cutoff from the masked data
-        # revised_contour = np.mean(new_data_non_zero) + np.std(new_data_non_zero)
-        # use median cutoff from the masked data, could be other percentile
-        revised_contour = np.percentile(new_data_non_zero, 50)
-    else:
-        revised_contour = np.min(new_data[new_data > 1e-8])
+    # if use_grad == True:
+    #     # use 1 sigma cutoff from the masked data
+    #     # revised_contour = np.mean(new_data_non_zero) + np.std(new_data_non_zero)
+    #     # use median cutoff from the masked data, could be other percentile
+    #     revised_contour = np.percentile(new_data_non_zero, 50)
+    # else:
+    #     revised_contour = np.min(new_data[new_data > 1e-8])
 
-    mask_percent = np.count_nonzero(new_data > 1e-6) / np.count_nonzero(map_data > 1e-6)
+    mask_percent = np.count_nonzero(new_data > 1e-8) / np.count_nonzero(map_data > 1e-8)
 
     # plot the histogram
     fig, ax = plt.subplots(figsize=(10, 2))
@@ -193,6 +201,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input_map_path", type=str, default=None)
     parser.add_argument("-o", "--output_folder", type=str, default=None)
     parser.add_argument("-p", "--plot_all", action="store_true")
+    parser.add_argument("-n", "--num_components", type=int, default=3)
     args = parser.parse_args()
     revised_contour, mask_percent = gmm_mask(input_map_path=args.input_map_path, output_folder=args.output_folder,
-                                             num_components=5, use_grad=True, n_init=1, plot_all=args.plot_all)
+                                             num_components=3, use_grad=True, n_init=3, plot_all=args.plot_all)

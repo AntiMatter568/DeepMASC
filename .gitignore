@@ -161,3 +161,4 @@ cython_debug/
 
 CryoREAD_Predict_Result/
 output_test/
+examples/
