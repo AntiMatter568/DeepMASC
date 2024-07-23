@@ -11,6 +11,9 @@ dependencies:
   - python=3.10
   - pytorch
   - pytorch-cuda=11.8
+  - scikit-learn
+  - scikit-image
+  - matplotlib
   - pip:
       - biopython
       - numba

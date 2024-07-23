@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 
 CryoREAD_Predict_Result/
+output_test/

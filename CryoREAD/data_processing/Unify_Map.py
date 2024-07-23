@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     args = argparse.ArgumentParser()
     args.add_argument("-i", "--input_map_path", type=str, default=None)
-    args.add_argument("-o", "--output_map_path", type=str, default=None)
+    args.add_argument("-o", "--output_folder", type=str, default=None)
     args = args.parse_args()
     new_map_path = Unify_Map(args.input_map_path, args.output_map_path)
     print(f"New map path is {new_map_path}")

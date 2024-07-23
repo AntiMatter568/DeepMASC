@@ -89,7 +89,7 @@ def Resize_Map(input_map_path,new_map_path):
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("-i", "--input_map_path", type=str, default=None)
-    args.add_argument("-o", "--output_map_path", type=str, default=None)
+    args.add_argument("-o", "--output_folder", type=str, default=None)
     args = args.parse_args()
 
     Resize_Map(args.input_map_path,args.output_map_path)
