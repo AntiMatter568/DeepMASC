@@ -39,7 +39,7 @@ python main.py -F ./Class3D/job052/class1.mrc ./Class3D/job052/class2.mrc ./Clas
 -n: Number of intializations (Optional, 3 by default)
 ```
 
-## Example for generating
+## Example for Auto Contouring
 
 ```
 python gmm_contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p

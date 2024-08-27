@@ -132,7 +132,7 @@ if __name__ == "__main__":
         mask_map_path = os.path.join(save_path, "mask_protein.mrc")
         from data_processing.Gen_MaskDRNA_map import Gen_MaskProtein_map
 
-        Gen_MaskProtein_map(chain_prob, cur_map_path, mask_map_path, params["contour"], threshold=0.3)
+        Gen_MaskProtein_map(chain_prob, cur_map_path, mask_map_path, params["contour"], threshold=0.2)
         if params["prediction_only"]:
             print(
                 "Our prediction results are saved in %s with mrc format for visualization check." % save_path_2nd_stage)
