@@ -20,9 +20,8 @@ if __name__ == "__main__":
 
     logger.info("Input job folder path: ", args.F)
 
-    CRYOREAD_PATH = "./CryoREAD/main.py"
-
-    # mrc_files = glob(args.F + "/*.mrc")
+    CURR_SCIPT_PATH = Path(__file__).absolute().parent
+    CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
 
     mrc_files = args.F
     # check if files exists

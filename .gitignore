@@ -162,3 +162,14 @@ cython_debug/
 CryoREAD_Predict_Result/
 output_test/
 examples/
+Tutorial5.0/
+test_outdir/
+test_cryoread_26363/
+job019_run_it050_class001_test/
+job052_run_it100_class003/
+22647_test_gmm/
+26363_test_gmm/
+CryoREAD/test_cryoread_22647/
+CryoREAD/test_cryoread_26363/
+CryoREAD/job019_run_it050_class001/
+CryoREAD/job052_run_it100_class003/
