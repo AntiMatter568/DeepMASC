@@ -39,8 +39,15 @@ python main.py -F ./Class3D/job052/class1.mrc ./Class3D/job052/class2.mrc ./Clas
 -n: Number of intializations (Optional, 3 by default)
 ```
 
-## Example for Auto Contouring
+## Example for GMM Auto Contouring for Rough Masking
 
 ```
-python gmm_contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
+python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
+```
+
+
+## Example for CryoREAD Auto Refinement Masking
+
+```
+python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
 ```

@@ -28,7 +28,7 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=4, gpu_id=None):
         f"--gpu={gpu_id}",
         f"--batch_size={batch_size}",
         f"--prediction_only",
-        f"--resolution=3",
+        f"--resolution=3.0",
         f"--output={output_folder}",
     ]
     os.system(" ".join(cmd))
@@ -255,6 +255,9 @@ if __name__ == "__main__":
             batch_size=args.batch_size,
             gpu_id=args.gpu_id,
         )
+
+        final_protein_prob = os.path.join(args.output_folder, "2nd_stage_detection", "chain_protein_prob.mrc")
+
     else:
         revised_contour, mask_percent = gmm_mask(
             input_map_path=args.input_map_path,
