@@ -18,6 +18,22 @@ CURR_SCIPT_PATH = Path(__file__).absolute().parent
 CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
 
 
+def run_cryoREAD(mrc_path, output_folder, batch_size=4, gpu_id=None):
+    cmd = [
+        "python",
+        CRYOREAD_PATH,
+        "--mode=0",
+        f"-F={mrc_path}",
+        "--contour=0",
+        f"--gpu={gpu_id}",
+        f"--batch_size={batch_size}",
+        f"--prediction_only",
+        f"--resolution=3",
+        f"--output={output_folder}",
+    ]
+    os.system(" ".join(cmd))
+
+
 def save_mrc(orig_map_path, data, out_path):
     with mrcfile.open(orig_map_path, permissive=True) as orig_map:
         with mrcfile.new(out_path, data=data.astype(np.float32), overwrite=True) as mrc:
@@ -227,13 +243,24 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output_folder", type=str, default=None)
     parser.add_argument("-p", "--plot_all", action="store_true")
     parser.add_argument("-n", "--num_components", type=int, default=2)
-    parser.add_argument("-r", "--resolution", type=float, default=None)
+    parser.add_argument("-r", "--refinement_mask", action="store_true")
+    parser.add_argument("-g", "--gpu_id", type=str, default=None)
+    parser.add_argument("-b", "--batch_size", type=int, default=8)
     args = parser.parse_args()
-    revised_contour, mask_percent = gmm_mask(
-        input_map_path=args.input_map_path,
-        output_folder=args.output_folder,
-        num_components=args.num_components,
-        use_grad=True,
-        n_init=3,
-        plot_all=args.plot_all,
-    )
+
+    if args.r:
+        run_cryoREAD(
+            mrc_path=args.input_map_path,
+            output_folder=args.output_folder,
+            batch_size=args.batch_size,
+            gpu_id=args.gpu_id,
+        )
+    else:
+        revised_contour, mask_percent = gmm_mask(
+            input_map_path=args.input_map_path,
+            output_folder=args.output_folder,
+            num_components=args.num_components,
+            use_grad=True,
+            n_init=3,
+            plot_all=args.plot_all,
+        )
