@@ -226,7 +226,7 @@ print('[GTF_DEBUG] selected_class_id :', selected_class_id)
 """<<< Selecting the best class"""
 
 """Copying selected map >>>"""
-input_selected_map_file_rpath = first_class3d_sort_entry_list[idx_class3d_map_dir_rpath]
+input_selected_map_file_rpath = first_class3d_sort_entry_list[1]
 output_selected_map_file_rpath = os.path.join(outargs_rpath, output_selected_map_mrc_file_basename)
 print('[GTF_DEBUG] input_selected_map_file_rpath   : %s' % input_selected_map_file_rpath)
 print('[GTF_DEBUG] output_selected_map_file_rpath  : %s' % output_selected_map_file_rpath)
