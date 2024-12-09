@@ -1,0 +1,29 @@
+[project]
+name = "AutoClass3D"
+channels = ["conda-forge", "bioconda", "nvidia", "pytorch"]
+python = "3.10"
+platforms = ["linux-64"]
+authors = ["Han Zhu <zhu773@purdue.edu>"]
+readme = "README.md"
+repository = "https://github.itap.purdue.edu/kiharalab/AutoClass3D/"
+
+[tasks]
+
+[dependencies]
+cudatoolkit = "11.8"
+pip = "*"
+pytorch = "*"
+pytorch-cuda = "11.8"
+scikit-learn = "*"
+scikit-image = "*"
+matplotlib = "*"
+biopython = "*"
+numba = "*"
+numpy = "*"
+scipy = "*"
+tqdm = "*"
+ortools = "*"
+mrcfile = "*"
+progress = "*"
+numba-progress = "*"
+loguru = "*"
