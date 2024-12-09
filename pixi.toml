@@ -7,7 +7,7 @@ readme = "README.md"
 repository = "https://github.itap.purdue.edu/kiharalab/AutoClass3D/"
 
 [tasks]
-run = "python ./CryoREAD/main.py"
+cryoread = "python ./CryoREAD/main.py"
 
 [dependencies]
 python = "3.11.*"

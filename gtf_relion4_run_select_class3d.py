@@ -168,6 +168,8 @@ print('')
 CURR_SCIPT_PATH = Path(__file__).absolute().parent
 CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
 OUTDIR = str(Path(outargs_rpath).absolute() / args.J)
+TEMP_CURR_DIR = os.getcwd()
+os.chdir(CURR_SCIPT_PATH)
 result_list_cryoREAD = []
 for class3d_sort_entry_list in class3d_sort_table:
     mrc_file = class3d_sort_entry_list[idx_class3d_map_dir_rpath]
@@ -177,7 +179,9 @@ for class3d_sort_entry_list in class3d_sort_table:
     seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
     prot_prob_path = os.path.join(curr_out_dir, "mask_protein.mrc")
     cmd = [
-        "python",
+        "pixi",
+        "run",
+        "cryoread",
         CRYOREAD_PATH,
         "--mode=0",
         f"-F={mrc_file}",
@@ -204,6 +208,7 @@ for class3d_sort_entry_list in class3d_sort_table:
 
     result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
     result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
+os.chdir(TEMP_CURR_DIR)
 
 # Get 1st entry of sorted class3d model table by CryoREAD
 first_class3d_sort_entry_list = result_list_cryoREAD[0]
