@@ -143,7 +143,7 @@ if __name__ == "__main__":
         x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
 
         print("CCC: %.4f" % real_space_cc)
-        print("FSC: %.4f" % fsc)
+        print("FSC: %.4f" % cutoff_05)
 
         # write to file
         with open(os.path.join(save_path, "CCC_FSC05.txt"), "w") as f:
