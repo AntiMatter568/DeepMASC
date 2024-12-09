@@ -181,7 +181,7 @@ for class3d_sort_entry_list in class3d_sort_table:
         "pixi",
         "run",
         "cryoread",
-        CRYOREAD_PATH,
+        # CRYOREAD_PATH,
         "--mode=0",
         f"-F={mrc_file}",
         "--contour=0",
