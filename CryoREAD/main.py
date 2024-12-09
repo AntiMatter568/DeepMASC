@@ -133,21 +133,6 @@ if __name__ == "__main__":
         from data_processing.Gen_MaskDRNA_map import Gen_MaskProtein_map
 
         Gen_MaskProtein_map(chain_prob, cur_map_path, mask_map_path, params["contour"], threshold=0.2)
-        if params["prediction_only"]:
-            print(
-                "Our prediction results are saved in %s with mrc format for visualization check." % save_path_2nd_stage)
-            exit()
-        # graph based atomic structure modeling
-        gaussian_bandwidth = params["g"]  # use 3
-        dcut = params["m"]  # after meanshifting merge points distance<[float]
-        rdcut = params["f"]  # remove ldp threshold 0.01
-        from graph.Build_Unet_Graph import Build_Unet_Graph
-
-        graph_save_path = os.path.join(save_path, "graph_atomic_modeling")
-        mkdir(graph_save_path)
-
-        Build_Unet_Graph(cur_map_path, chain_predict_path, fasta_path, graph_save_path, gaussian_bandwidth, dcut, rdcut,
-                         params)
 
         from map_utils import calc_map_ccc, calculate_fsc
 
@@ -164,6 +149,22 @@ if __name__ == "__main__":
         with open(os.path.join(save_path, "CCC_FSC05.txt"), "w") as f:
             f.write(real_space_cc + "\n")
             f.write(cutoff_05 + "\n")
+
+        if params["prediction_only"]:
+            print(
+                "Our prediction results are saved in %s with mrc format for visualization check." % save_path_2nd_stage)
+            exit()
+        # graph based atomic structure modeling
+        gaussian_bandwidth = params["g"]  # use 3
+        dcut = params["m"]  # after meanshifting merge points distance<[float]
+        rdcut = params["f"]  # remove ldp threshold 0.01
+        from graph.Build_Unet_Graph import Build_Unet_Graph
+
+        graph_save_path = os.path.join(save_path, "graph_atomic_modeling")
+        mkdir(graph_save_path)
+
+        Build_Unet_Graph(cur_map_path, chain_predict_path, fasta_path, graph_save_path, gaussian_bandwidth, dcut, rdcut,
+                         params)
 
     elif params["mode"] == 1:
 
