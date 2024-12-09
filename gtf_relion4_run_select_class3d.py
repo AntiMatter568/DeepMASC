@@ -199,8 +199,8 @@ for class3d_sort_entry_list in class3d_sort_table:
     with open(output_file, "r") as f:
         metrics = f.read().splitlines()
 
-    real_space_cc = float(metrics[0].split()[1])
-    cutoff_05 = float(metrics[1].split()[1])
+    real_space_cc = float(metrics[0])
+    cutoff_05 = float(metrics[1])
 
     # try:
     #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
