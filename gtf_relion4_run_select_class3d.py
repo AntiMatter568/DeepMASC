@@ -166,7 +166,7 @@ print('')
 # CryoREAD
 CURR_SCIPT_PATH = Path(__file__).absolute().parent
 CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
-OUTDIR = str(Path(outargs_rpath).absolute() / args.J)
+OUTDIR = str(Path(outargs_rpath).absolute())
 TEMP_CURR_DIR = os.getcwd()
 os.chdir(CURR_SCIPT_PATH)
 result_list_cryoREAD = []
