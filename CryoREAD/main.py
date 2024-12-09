@@ -147,8 +147,8 @@ if __name__ == "__main__":
 
         # write to file
         with open(os.path.join(save_path, "CCC_FSC05.txt"), "w") as f:
-            f.write(real_space_cc + "\n")
-            f.write(cutoff_05 + "\n")
+            f.write(str(real_space_cc) + "\n")
+            f.write(str(cutoff_05) + "\n")
 
         if params["prediction_only"]:
             print(
