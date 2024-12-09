@@ -83,14 +83,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input", "--in_parts", type=str,
                     help="RELION requirement! Input particle star file Path (relative)")
 parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
-parser.add_argument("-g", "--gpu", type=str, help="GPU ID to use for prediction")
+parser.add_argument("-g", "--device", type=str, help="GPU ID to use for prediction")
 ### parser.add_argument("-m", "--model_star",           type=str,                                             help = "Input model star file Path (relative).")
 ### parser.add_argument("-r", "--script_repo",         type=str,                                              help = "Script repository directory path (full).")
 args, unknown = parser.parse_known_args()
 
 inargs_parts = args.input
 outargs_rpath = args.output
-gpu_ids = args.gpu
+gpu_ids = args.device
 ### model_star_rpath =str( args.model_star)
 ### script_repo_fpath = str(args.script_repo)
 invalid_str = "GTF_INVALID_STR"
