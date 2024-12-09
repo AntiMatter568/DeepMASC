@@ -196,7 +196,7 @@ for class3d_sort_entry_list in class3d_sort_table:
     process = subprocess.Popen(cmd, shell=False, universal_newlines=True)
     output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
     metrics = []
-    with open(output_file, "w") as f:
+    with open(output_file, "r") as f:
         metrics = f.read().splitlines()
 
     real_space_cc = float(metrics[0].split()[1])
