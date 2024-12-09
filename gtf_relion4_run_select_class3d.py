@@ -171,7 +171,7 @@ TEMP_CURR_DIR = os.getcwd()
 os.chdir(CURR_SCIPT_PATH)
 result_list_cryoREAD = []
 for class3d_sort_entry_list in class3d_sort_table:
-    mrc_file = str(Path(class3d_sort_entry_list[idx_class3d_map_dir_rpath]).absolute())
+    mrc_file = os.path.join(input_job_dir_rpath, class3d_sort_entry_list[idx_class3d_map_dir_rpath])
     print('[GTF_DEBUG] Running CryoREAD on mrc_file : ', mrc_file)
     curr_out_dir = os.path.join(OUTDIR, Path(mrc_file).stem.split(".")[0])
     class_id = int(class3d_sort_entry_list[idx_class3d_gtc_class3d_id])
