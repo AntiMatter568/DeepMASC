@@ -6,6 +6,9 @@ authors = ["Han Zhu <zhu773@purdue.edu>"]
 readme = "README.md"
 repository = "https://github.itap.purdue.edu/kiharalab/AutoClass3D/"
 
+[system-requirements]
+cuda = "11"
+
 [tasks]
 cryoread = "PYTHONNOUSERSITE=1 python ./CryoREAD/main.py"
 
@@ -24,6 +27,7 @@ scipy = "*"
 tqdm = "*"
 mrcfile = "*"
 loguru = "*"
+mkl = "2024.0.*"
 
 [pypi-dependencies]
 ortools = ">=9.11.4210, <10"
