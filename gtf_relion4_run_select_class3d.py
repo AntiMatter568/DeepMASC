@@ -192,6 +192,7 @@ for class3d_sort_entry_list in class3d_sort_table:
         f"--resolution=8.0",
         f"--output={curr_out_dir}",
     ]
+    print('[GTF_DEBUG] cmd : ', cmd)
     process = subprocess.Popen(cmd, shell=False, universal_newlines=True)
     output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
     metrics = []
