@@ -68,7 +68,6 @@ import shutil  # copyfile
 import sys
 import pprint
 from pathlib import Path
-from map_utils import calc_map_ccc, calculate_fsc
 
 """<<< Import"""
 
@@ -187,24 +186,31 @@ for class3d_sort_entry_list in class3d_sort_table:
         f"-F={mrc_file}",
         "--contour=0",
         f"--gpu={gpu_ids}",
-        f"--batch_size=8",  #TODO: Automatic Batch Sizing???
+        f"--batch_size=8",  # TODO: Automatic Batch Sizing???
         f"--prediction_only",
         f"--resolution=8.0",
         f"--output={curr_out_dir}",
     ]
     process = subprocess.Popen(cmd, shell=False, universal_newlines=True)
+    output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
+    metrics = []
+    with open(output_file, "w") as f:
+        metrics = f.read().splitlines()
 
-    try:
-        real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-    except:
-        print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
-        real_space_cc = 0.0
+    real_space_cc = float(metrics[0].split()[1])
+    cutoff_05 = float(metrics[1].split()[1])
 
-    try:
-        x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
-    except:
-        print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
-        cutoff_05 = 0.0
+    # try:
+    #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
+    # except:
+    #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
+    #     real_space_cc = 0.0
+    #
+    # try:
+    #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+    # except:
+    #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
+    #     cutoff_05 = 0.0
 
     result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
     result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)

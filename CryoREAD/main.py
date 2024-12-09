@@ -148,6 +148,23 @@ if __name__ == "__main__":
 
         Build_Unet_Graph(cur_map_path, chain_predict_path, fasta_path, graph_save_path, gaussian_bandwidth, dcut, rdcut,
                          params)
+
+        from map_utils import calc_map_ccc, calculate_fsc
+
+        seg_map_path = os.path.join(save_path, "input_segment.mrc")
+        prot_prob_path = os.path.join(save_path, "mask_protein.mrc")
+
+        real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
+        x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+
+        print("CCC: %.4f" % real_space_cc)
+        print("FSC: %.4f" % fsc)
+
+        # write to file
+        with open(os.path.join(save_path, "CCC_FSC05.txt"), "w") as f:
+            f.write(real_space_cc + "\n")
+            f.write(cutoff_05 + "\n")
+
     elif params["mode"] == 1:
 
         # structure refinement pipeline
