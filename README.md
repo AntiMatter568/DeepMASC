@@ -4,16 +4,27 @@ A deep learning based tool to automatically select the best reconstructed 3D map
 
 ## Installation
 
-clone the repository:
+Clone the repository:
 
-```
+```bash
 git clone github.itap.purdue.edu/kiharalab/AutoClass3D
 ```
 
-create conda environment:
+Create pixi environment (recommended):
 
+Install pixi:
+```bash
+curl -fsSL https://pixi.sh/install.sh | bash
 ```
-conda env create -f environment.yml
+
+Install environment:
+```bash
+pixi install
+```
+
+Enter environment:
+```bash
+pixi shell
 ```
 
 ## Arguments for Class3D/InitialModel Selection (All required)
@@ -26,7 +37,7 @@ conda env create -f environment.yml
 
 ## Example for Class3D/InitialModel Selection
 
-```
+```bash
 python main.py -F ./Class3D/job052/class1.mrc ./Class3D/job052/class2.mrc ./Class3D/job052/class3.mrc -G 0,1,2 -J job052_select
 ```
 
@@ -41,13 +52,13 @@ python main.py -F ./Class3D/job052/class1.mrc ./Class3D/job052/class2.mrc ./Clas
 
 ## Example for GMM Auto Contouring for Rough Masking
 
-```
+```bash
 python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
 ```
 
 
 ## Example for CryoREAD Auto Refinement Masking
 
-```
+```bash
 python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
 ```
