@@ -224,12 +224,12 @@ first_class3d_sort_entry_list = result_list_cryoREAD[0]
 
 # Print header
 print("\n[GTF_DEBUG] Sorted CryoREAD Results:")
-print(f"{'Class ID':<10} {'MRC File':<30} {'Real Space CC between Map and Predicted Masked Map':<15} {'FSC @ 0.5 Cutoff':<15}")
-print("-" * 70)
+print(f"{'Class ID':<10} {'MRC File':<60} {'Real Space CC':<20} {'FSC @ 0.5':<15}")
+print("-" * 105)  # Increased length of separator
 
 # Print each row
 for row in result_list_cryoREAD:
-    print(f"{str(row[0]):<10} {str(row[1]):<30} {row[2]:<15.4f} {row[3]:<15.4f}")
+    print(f"{str(row[0]):<10} {str(row[1]):<60} {row[2]:<20.4f} {row[3]:<15.4f}")
 
 selected_class_id = int(first_class3d_sort_entry_list[0])
 print('[GTF_DEBUG] Selected Class ID :', selected_class_id)
