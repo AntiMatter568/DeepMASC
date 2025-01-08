@@ -169,7 +169,7 @@ def gmm_mask(input_map_path, output_folder, num_components=2, use_grad=False, n_
     masked_map_data = map_data * mask
     new_data_non_zero = masked_map_data[np.nonzero(masked_map_data)]
 
-    # calcualte new gradient norm
+    # calculate new gradient norm
     new_fit_data = gen_features(masked_map_data)
     print("Fitting feature shape:", new_fit_data.shape)
 

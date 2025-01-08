@@ -22,11 +22,6 @@ Install environment:
 pixi install
 ```
 
-Enter environment:
-```bash
-pixi shell
-```
-
 ## Arguments for Class3D/InitialModel Selection (All required)
 
 ```
@@ -38,7 +33,7 @@ pixi shell
 ## Example for Class3D/InitialModel Selection
 
 ```bash
-python main.py -F ./Class3D/job052/class1.mrc ./Class3D/job052/class2.mrc ./Class3D/job052/class3.mrc -G 0,1,2 -J job052_select
+pixi run cryoread -F ./Class3D/job052/class1.mrc ./Class3D/job052/class2.mrc ./Class3D/job052/class3.mrc -G 0,1,2 -J job052_select
 ```
 
 ## Arguments for Auto Contouring
