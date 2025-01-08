@@ -222,14 +222,17 @@ os.chdir(TEMP_CURR_DIR)
 first_class3d_sort_entry_list = result_list_cryoREAD[0]
 # print('[GTF_DEBUG] first_class3d_sort_entry_list : ', first_class3d_sort_entry_list)
 
-# Print header
-print("\n[GTF_DEBUG] Sorted CryoREAD Results:")
-print(f"{'Class ID':<10} {'MRC File':<60} {'Real Space CC':<20} {'FSC @ 0.5':<15}")
-print("-" * 105)  # Increased length of separator
-
-# Print each row
-for row in result_list_cryoREAD:
-    print(f"{str(row[0]):<10} {str(row[1]):<60} {row[2]:<20.4f} {row[3]:<15.4f}")
+# Print results as table
+print('[GTF_DEBUG] CryoREAD Sort Table Index: Class ID, MRC File, Real Space CC, FSC @ 0.5')
+i_cryoread_sort_table = 0
+for entry in result_list_cryoREAD:
+   print('[GTF_DEBUG]   ', i_cryoread_sort_table, ' : ',
+         entry[0], ', ',  # Class ID
+         entry[1], ', ',  # MRC File
+         entry[2], ', ',  # Real Space CC
+         entry[3])        # FSC @ 0.5
+   i_cryoread_sort_table += 1
+print('')
 
 selected_class_id = int(first_class3d_sort_entry_list[0])
 print('[GTF_DEBUG] Selected Class ID :', selected_class_id)
