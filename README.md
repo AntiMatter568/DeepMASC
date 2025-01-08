@@ -55,5 +55,5 @@ python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
 ## Example for CryoREAD Auto Refinement Masking
 
 ```bash
-python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
+python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p -r
 ```

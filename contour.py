@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 import mrcfile
 import numpy as np
@@ -13,25 +14,35 @@ from scipy.ndimage import zoom
 import matplotlib.pyplot as plt
 
 # change to relative path to this file
-# CRYOREAD_PATH = "./CryoREAD/main.py"
 CURR_SCIPT_PATH = Path(__file__).absolute().parent
-CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
+CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD"
 
 
-def run_cryoREAD(mrc_path, output_folder, batch_size=4, gpu_id=None):
-    cmd = [
-        "python",
-        CRYOREAD_PATH,
-        "--mode=0",
-        f"-F={mrc_path}",
-        "--contour=0",
-        f"--gpu={gpu_id}",
-        f"--batch_size={batch_size}",
-        f"--prediction_only",
-        f"--resolution=3.0",
-        f"--output={output_folder}",
-    ]
-    os.system(" ".join(cmd))
+def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None):
+    output_folder = str(Path(output_folder).absolute())
+    TEMP_CURR_DIR = os.getcwd()
+    os.chdir(CRYOREAD_PATH)
+
+    try:
+        cmd = [
+            "python",
+            "main.py",
+            "--mode=0",
+            f"-F={mrc_path}",
+            "--contour=0",
+            f"--gpu={gpu_id}",
+            f"--batch_size={batch_size}",
+            f"--prediction_only",
+            f"--resolution=3.0",
+            f"--output={output_folder}",
+        ]
+
+        print(" ".join(cmd))
+        process = subprocess.run(cmd, shell=False, text=True)
+    except:
+        pass
+    finally:
+        os.chdir(TEMP_CURR_DIR)
 
 
 def save_mrc(orig_map_path, data, out_path):
@@ -239,23 +250,22 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input_map_path", type=str, default=None)
-    parser.add_argument("-o", "--output_folder", type=str, default=None)
+    parser.add_argument("-i", "--input_map_path", type=str, required=True)
+    parser.add_argument("-o", "--output_folder", type=str, required=True)
+    parser.add_argument("-g", "--gpu_id", type=str, required=True)
     parser.add_argument("-p", "--plot_all", action="store_true")
     parser.add_argument("-n", "--num_components", type=int, default=2)
     parser.add_argument("-r", "--refinement_mask", action="store_true")
-    parser.add_argument("-g", "--gpu_id", type=str, default=None)
     parser.add_argument("-b", "--batch_size", type=int, default=8)
     args = parser.parse_args()
 
-    if args.r:
+    if args.refinement_mask:
         run_cryoREAD(
             mrc_path=args.input_map_path,
             output_folder=args.output_folder,
             batch_size=args.batch_size,
             gpu_id=args.gpu_id,
         )
-
         final_protein_prob = os.path.join(args.output_folder, "2nd_stage_detection", "chain_protein_prob.mrc")
 
     else:

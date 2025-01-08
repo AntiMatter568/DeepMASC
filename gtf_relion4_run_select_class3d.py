@@ -187,7 +187,7 @@ for class3d_sort_entry_list in class3d_sort_table:
         f"-F={mrc_file}",
         "--contour=0",
         f"--gpu={gpu_ids}",
-        f"--batch_size=8",  # TODO: Automatic Batch Sizing???
+        f"--batch_size=8",  # TODO: Automatic Batch Sizing or expose this as parameter
         f"--prediction_only",
         f"--resolution=8.0",
         f"--output={curr_out_dir}",
