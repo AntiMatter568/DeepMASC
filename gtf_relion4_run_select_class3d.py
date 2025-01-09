@@ -177,9 +177,10 @@ result_list_cryoREAD = []
 # Create the temp directory if it doesn't exist
 os.makedirs(args.temp, exist_ok=True)
 
-with tempfile.TemporaryDirectory(dir=args.temp) as tmpdirname:
-    print('created temporary directory', tmpdirname)
+tmpdirname = tempfile.TemporaryDirectory(dir=args.temp)
+print('created temporary directory', tmpdirname)
 
+try:
     for class3d_sort_entry_list in class3d_sort_table:
         mrc_file = os.path.join(input_job_dir_rpath_abs,
                                 class3d_sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
@@ -225,20 +226,27 @@ with tempfile.TemporaryDirectory(dir=args.temp) as tmpdirname:
         shutil.copy(prot_prob_path, os.path.join(OUTDIR, f"{map_name}_mask_protein.mrc"))
         shutil.copy(output_file, os.path.join(OUTDIR, f"{map_name}_CCC_FSC05.txt"))
 
-        # try:
-        #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-        # except:
-        #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
-        #     real_space_cc = 0.0
-        #
-        # try:
-        #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
-        # except:
-        #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
-        #     cutoff_05 = 0.0
-
         result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
         result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
+
+except:
+    print('[GTF_DEBUG] CryoREAD failed on : ', mrc_file)
+
+tmpdirname.cleanup()
+
+    # try:
+    #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
+    # except:
+    #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
+    #     real_space_cc = 0.0
+    #
+    # try:
+    #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+    # except:
+    #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
+    #     cutoff_05 = 0.0
+
+
 
 os.chdir(TEMP_CURR_DIR)
 
