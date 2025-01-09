@@ -174,6 +174,9 @@ input_job_dir_rpath_abs = os.path.abspath(input_job_dir_rpath)
 os.chdir(CURR_SCIPT_PATH)
 result_list_cryoREAD = []
 
+# Create the temp directory if it doesn't exist
+os.makedirs(args.temp, exist_ok=True)
+
 with tempfile.TemporaryDirectory(dir=args.temp) as tmpdirname:
     print('created temporary directory', tmpdirname)
 
