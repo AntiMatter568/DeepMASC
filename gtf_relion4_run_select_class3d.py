@@ -177,16 +177,16 @@ result_list_cryoREAD = []
 # Create the temp directory if it doesn't exist
 os.makedirs(args.temp, exist_ok=True)
 
-tmpdirname = tempfile.TemporaryDirectory(dir=args.temp)
-print('created temporary directory', tmpdirname)
+with tempfile.TemporaryDirectory(dir=args.temp) as temp_dir:
+    temp_dir_name = temp_dir.name
+    print('created temporary directory', temp_dir_name)
 
-try:
     for class3d_sort_entry_list in class3d_sort_table:
         mrc_file = os.path.join(input_job_dir_rpath_abs,
                                 class3d_sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
         print('[GTF_DEBUG] Running CryoREAD on mrc_file : ', mrc_file)
         map_name = Path(mrc_file).stem.split(".")[0].strip()
-        curr_out_dir = os.path.join(tmpdirname, map_name)
+        curr_out_dir = os.path.join(temp_dir.name, map_name)
         print('[GTF_DEBUG] curr_out_dir : ', curr_out_dir)
         os.makedirs(curr_out_dir, exist_ok=True)
         class_id = int(class3d_sort_entry_list[idx_class3d_gtc_class3d_id])
@@ -216,8 +216,10 @@ try:
         cutoff_05 = float(metrics[1])
 
         # copyfiles to final output dir
-        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"), os.path.join(OUTDIR, f"{map_name}_chain_base_prob.mrc"))
-        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"), os.path.join(OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"))
+        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
+                    os.path.join(OUTDIR, f"{map_name}_chain_base_prob.mrc"))
+        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
+                    os.path.join(OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"))
         shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
                     os.path.join(OUTDIR, f"{map_name}_chain_sugar_prob.mrc"))
         shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
@@ -226,27 +228,20 @@ try:
         shutil.copy(prot_prob_path, os.path.join(OUTDIR, f"{map_name}_mask_protein.mrc"))
         shutil.copy(output_file, os.path.join(OUTDIR, f"{map_name}_CCC_FSC05.txt"))
 
+        # try:
+        #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
+        # except:
+        #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
+        #     real_space_cc = 0.0
+        #
+        # try:
+        #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+        # except:
+        #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
+        #     cutoff_05 = 0.0
+
         result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
         result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
-
-except:
-    print('[GTF_DEBUG] CryoREAD failed on : ', mrc_file)
-
-tmpdirname.cleanup()
-
-    # try:
-    #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-    # except:
-    #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
-    #     real_space_cc = 0.0
-    #
-    # try:
-    #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
-    # except:
-    #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
-    #     cutoff_05 = 0.0
-
-
 
 os.chdir(TEMP_CURR_DIR)
 
