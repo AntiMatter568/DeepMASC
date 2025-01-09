@@ -177,7 +177,8 @@ result_list_cryoREAD = []
 # Create the temp directory if it doesn't exist
 os.makedirs(args.temp, exist_ok=True)
 
-with tempfile.TemporaryDirectory(dir=args.temp) as temp_dir:
+temp_dir = tempfile.TemporaryDirectory()
+try:
     temp_dir_name = temp_dir.name
     print('created temporary directory', temp_dir_name)
 
@@ -242,7 +243,10 @@ with tempfile.TemporaryDirectory(dir=args.temp) as temp_dir:
 
         result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
         result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
+except:
+    print('[GTF_DEBUG] Error running CryoREAD')
 
+temp_dir.cleanup() # delete temp dir
 os.chdir(TEMP_CURR_DIR)
 
 # Get 1st entry of sorted class3d model table by CryoREAD
