@@ -186,6 +186,7 @@ with tempfile.TemporaryDirectory(dir=args.temp) as tmpdirname:
         print('[GTF_DEBUG] Running CryoREAD on mrc_file : ', mrc_file)
         map_name = Path(mrc_file).stem.split(".")[0].strip()
         curr_out_dir = os.path.join(tmpdirname, map_name)
+        os.makedirs(curr_out_dir, exist_ok=True)
         class_id = int(class3d_sort_entry_list[idx_class3d_gtc_class3d_id])
         seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
         prot_prob_path = os.path.join(curr_out_dir, "mask_protein.mrc")
