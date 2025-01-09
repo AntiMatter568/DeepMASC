@@ -84,6 +84,7 @@ parser.add_argument("-i", "--input", "--in_parts", type=str,
                     help="RELION requirement! Input particle star file Path (relative)")
 parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
 parser.add_argument("-g", "--device", type=str, help="GPU ID to use for prediction")
+parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
 ### parser.add_argument("-m", "--model_star",           type=str,                                             help = "Input model star file Path (relative).")
 ### parser.add_argument("-r", "--script_repo",         type=str,                                              help = "Script repository directory path (full).")
 args, unknown = parser.parse_known_args()
@@ -173,7 +174,7 @@ input_job_dir_rpath_abs = os.path.abspath(input_job_dir_rpath)
 os.chdir(CURR_SCIPT_PATH)
 result_list_cryoREAD = []
 
-with tempfile.TemporaryDirectory() as tmpdirname:
+with tempfile.TemporaryDirectory(dir=args.temp) as tmpdirname:
     print('created temporary directory', tmpdirname)
 
     for class3d_sort_entry_list in class3d_sort_table:
@@ -209,11 +210,15 @@ with tempfile.TemporaryDirectory() as tmpdirname:
         cutoff_05 = float(metrics[1])
 
         # copyfiles to final output dir
+        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"), os.path.join(OUTDIR, f"{map_name}_chain_base_prob.mrc"))
+        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"), os.path.join(OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"))
+        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
+                    os.path.join(OUTDIR, f"{map_name}_chain_sugar_prob.mrc"))
+        shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
+                    os.path.join(OUTDIR, f"{map_name}_chain_protein_prob.mrc"))
         shutil.copy(seg_map_path, os.path.join(OUTDIR, f"{map_name}_segment.mrc"))
         shutil.copy(prot_prob_path, os.path.join(OUTDIR, f"{map_name}_mask_protein.mrc"))
-        shutil.copy(output_file, os.path.join(OUTDIR, f"{map_name}_CCC_FSC05.mrc"))
-
-        # if not os.path.exists(seg_map_path)
+        shutil.copy(output_file, os.path.join(OUTDIR, f"{map_name}_CCC_FSC05.txt"))
 
         # try:
         #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
