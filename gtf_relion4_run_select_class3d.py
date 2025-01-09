@@ -65,6 +65,7 @@ import subprocess
 import argparse
 import os
 import shutil  # copyfile
+import tempfile
 import sys
 import pprint
 from pathlib import Path
@@ -171,51 +172,64 @@ TEMP_CURR_DIR = os.getcwd()
 input_job_dir_rpath_abs = os.path.abspath(input_job_dir_rpath)
 os.chdir(CURR_SCIPT_PATH)
 result_list_cryoREAD = []
-for class3d_sort_entry_list in class3d_sort_table:
-    mrc_file = os.path.join(input_job_dir_rpath_abs, class3d_sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
-    print('[GTF_DEBUG] Running CryoREAD on mrc_file : ', mrc_file)
-    curr_out_dir = os.path.join(OUTDIR, Path(mrc_file).stem.split(".")[0])
-    class_id = int(class3d_sort_entry_list[idx_class3d_gtc_class3d_id])
-    seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
-    prot_prob_path = os.path.join(curr_out_dir, "mask_protein.mrc")
-    cmd = [
-        "pixi",
-        "run",
-        "cryoread",
-        # CRYOREAD_PATH,
-        "--mode=0",
-        f"-F={mrc_file}",
-        "--contour=0",
-        f"--gpu={gpu_ids}",
-        f"--batch_size=8",  # TODO: Automatic Batch Sizing or expose this as parameter
-        f"--prediction_only",
-        f"--resolution=8.0",
-        f"--output={curr_out_dir}",
-    ]
-    print('[GTF_DEBUG] cmd : ', " ".join(cmd))
-    process = subprocess.run(cmd, shell=False, text=True)
-    output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
-    metrics = []
-    with open(output_file, "r") as f:
-        metrics = f.read().splitlines()
 
-    real_space_cc = float(metrics[0])
-    cutoff_05 = float(metrics[1])
+with tempfile.TemporaryDirectory() as tmpdirname:
+    print('created temporary directory', tmpdirname)
 
-    # try:
-    #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-    # except:
-    #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
-    #     real_space_cc = 0.0
-    #
-    # try:
-    #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
-    # except:
-    #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
-    #     cutoff_05 = 0.0
+    for class3d_sort_entry_list in class3d_sort_table:
+        mrc_file = os.path.join(input_job_dir_rpath_abs,
+                                class3d_sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
+        print('[GTF_DEBUG] Running CryoREAD on mrc_file : ', mrc_file)
+        map_name = Path(mrc_file).stem.split(".")[0].strip()
+        curr_out_dir = os.path.join(tmpdirname, map_name)
+        class_id = int(class3d_sort_entry_list[idx_class3d_gtc_class3d_id])
+        seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
+        prot_prob_path = os.path.join(curr_out_dir, "mask_protein.mrc")
+        cmd = [
+            "pixi",
+            "run",
+            "cryoread",
+            "--mode=0",
+            f"-F={mrc_file}",
+            "--contour=0",
+            f"--gpu={gpu_ids}",
+            f"--batch_size=8",  # TODO: Automatic Batch Sizing or expose this as parameter
+            f"--prediction_only",
+            f"--resolution=8.0",
+            f"--output={curr_out_dir}",
+        ]
+        print('[GTF_DEBUG] cmd : ', " ".join(cmd))
+        process = subprocess.run(cmd, shell=False, text=True)
+        output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
+        metrics = []
+        with open(output_file, "r") as f:
+            metrics = f.read().splitlines()
 
-    result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
-    result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
+        real_space_cc = float(metrics[0])
+        cutoff_05 = float(metrics[1])
+
+        # copyfiles to final output dir
+        shutil.copy(seg_map_path, os.path.join(OUTDIR, f"{map_name}_segment.mrc"))
+        shutil.copy(prot_prob_path, os.path.join(OUTDIR, f"{map_name}_mask_protein.mrc"))
+        shutil.copy(output_file, os.path.join(OUTDIR, f"{map_name}_CCC_FSC05.mrc"))
+
+        # if not os.path.exists(seg_map_path)
+
+        # try:
+        #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
+        # except:
+        #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
+        #     real_space_cc = 0.0
+        #
+        # try:
+        #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+        # except:
+        #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
+        #     cutoff_05 = 0.0
+
+        result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
+        result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
+
 os.chdir(TEMP_CURR_DIR)
 
 # Get 1st entry of sorted class3d model table by CryoREAD
@@ -226,12 +240,12 @@ first_class3d_sort_entry_list = result_list_cryoREAD[0]
 print('[GTF_DEBUG] CryoREAD Sort Table Index: Class ID, MRC File, Real Space CC, FSC @ 0.5')
 i_cryoread_sort_table = 0
 for entry in result_list_cryoREAD:
-   print('[GTF_DEBUG]   ', i_cryoread_sort_table, ' : ',
-         entry[0], ', ',  # Class ID
-         entry[1], ', ',  # MRC File
-         entry[2], ', ',  # Real Space CC
-         entry[3])        # FSC @ 0.5
-   i_cryoread_sort_table += 1
+    print('[GTF_DEBUG]   ', i_cryoread_sort_table, ' : ',
+          entry[0], ', ',  # Class ID
+          entry[1], ', ',  # MRC File
+          entry[2], ', ',  # Real Space CC
+          entry[3])  # FSC @ 0.5
+    i_cryoread_sort_table += 1
 print('')
 
 selected_class_id = int(first_class3d_sort_entry_list[0])
