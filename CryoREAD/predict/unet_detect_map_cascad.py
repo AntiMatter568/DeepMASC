@@ -92,7 +92,7 @@ def make_predictions(test_loader,model,Coord_Voxel,voxel_size,overall_shape,num_
     Base_Matrix = np.zeros([base_classes,overall_shape[0],overall_shape[1],overall_shape[2]])
     Count_Matrix = np.zeros(overall_shape)
     #average for overlap regions
-    with torch.no_grad():
+    with torch.no_grad(), torch.cuda.amp.autocast():
         for batch_idx, data in enumerate(test_loader):
             # input, atom_target, nuc_target = data
             input, cur_index = data
@@ -194,7 +194,7 @@ def unet_detect_map_cascad(map_data,resume_model_path,voxel_size,
     cur_baseprob_path = os.path.join(train_save_path, "base_predictprob.npy")
     cur_baselabel_path = os.path.join(train_save_path, "base_predict.npy")
     if os.path.exists(cur_prob_path) and os.path.exists(cur_label_path):
-        Prediction_Matrix =np.load(cur_prob_path)
+        Prediction_Matrix = np.load(cur_prob_path)
         Prediction_Label = np.load(cur_label_path)
         Base_Matrix = np.load(cur_baseprob_path)
         Base_Label  = np.load(cur_baselabel_path)

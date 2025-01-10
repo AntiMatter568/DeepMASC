@@ -1,22 +1,33 @@
+import shutil
 from pathlib import Path
 import subprocess
-from glob import glob
 from loguru import logger
 import argparse
 import os
+import tempfile
 from map_utils import calc_map_ccc, calculate_fsc
+import select
 
 if __name__ == "__main__":
-
-    logger.add("AutoClass3D.log")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-F", nargs="+", type=str, help="List of input mrc files", required=True)
     parser.add_argument("-G", type=str, help="GPU ID to use for prediction", required=False, default="")
-    parser.add_argument("-J", type=str, help="Job name / output folder name", required=True)
+    parser.add_argument("-O", type=str, help="Output folder name", required=True)
     parser.add_argument("-B", type=int, help="Batch size to use", required=False, default=4)
+    parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode to generate full output")
+    parser.add_argument("-r","--reso", choices=["Low", "High"], type=str, help="Resolution to choose the deep learning model", default="Low")
+    parser.add_argument("--dryrun", action="store_true", help="Dry run, do not run CryoREAD but just print commands")
 
     args = parser.parse_args()
+
+    os.makedirs(args.O, exist_ok=True)
+
+    logger.add("AutoClass3D.log")
+
+    # Determine resolution of model to use
+    reso_input = 8.0 if args.reso == "Low" else 2.0
 
     logger.info("Input job folder path: ", args.F)
 
@@ -30,84 +41,144 @@ if __name__ == "__main__":
             logger.error("Input mrc file not found: " + mrc_file)
             exit(1)
 
-    OUTDIR = str(Path("./CryoREAD_Predict_Result").absolute() / args.J)
-    os.makedirs(OUTDIR, exist_ok=True)
-
     logger.info("MRC files count: " + str(len(mrc_files)))
     logger.info("MRC files path:\n" + "\n".join(mrc_files))
 
     # run CryoREAD
 
-    map_list = []
+    # make temp dir
+    os.makedirs(args.temp, exist_ok=True)
+    temp_dir = tempfile.TemporaryDirectory(dir=args.temp)
 
-    for mrc_file in mrc_files:
+    try:
+        temp_dir_name = temp_dir.name
+        map_list = []
 
-        curr_out_dir = OUTDIR + "/" + Path(mrc_file).stem.split(".")[0]
+        for mrc_file in mrc_files:
+            map_name = Path(mrc_file).stem.split(".")[0].strip()
+            curr_out_dir = os.path.join(temp_dir_name, map_name)
 
-        seg_map_path = curr_out_dir + "/input_segment.mrc"
-        prot_prob_path = curr_out_dir + "/mask_protein.mrc"
+            seg_map_path = curr_out_dir + "/input_segment.mrc"
+            prot_prob_path = curr_out_dir + "/mask_protein.mrc"
 
-        if not os.path.exists(seg_map_path) or not os.path.exists(prot_prob_path):
-            logger.info(f"Running CryoREAD prediction on {mrc_file}")
-            cmd = [
-                "python",
-                CRYOREAD_PATH,
-                "--mode=0",
-                f"-F={mrc_file}",
-                "--contour=0",
-                f"--gpu={args.G}",
-                f"--batch_size={args.B}",
-                f"--prediction_only",
-                f"--resolution=8.0",
-                f"--output={curr_out_dir}",
-            ]
-            process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       universal_newlines=True)
+            if not os.path.exists(seg_map_path) or not os.path.exists(prot_prob_path):
+                logger.info(f"Running CryoREAD prediction on {mrc_file}")
+                logger.info(f"MRC file: {mrc_file}")
+                cmd = [
+                    "python",
+                    str(CRYOREAD_PATH),
+                    "--mode=0",
+                    f"-F={mrc_file}",
+                    "--contour=0",
+                    f"--gpu={args.G}",
+                    f"--batch_size={args.B}",
+                    f"--prediction_only",
+                    f"--resolution={reso_input}",
+                    f"--output={curr_out_dir}",
+                ]
 
-            while True:
-                output = process.stdout.readline()
-                if output == "" and process.poll() is not None:
-                    break
-                if output:
-                    logger.info(output.strip())  # Log stdout
+                logger.info(f"Running cryoREAD command: {' '.join(cmd)}")
 
-            rc = process.poll()
-            while True:
-                err = process.stderr.readline()
-                if err == "" and process.poll() is not None:
-                    break
-                if err:
-                    logger.error(err.strip())  # Log stderr
-        try:
-            real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-        except:
-            logger.warning("Failed to calculate real space CC, maybe the map is empty")
-            real_space_cc = 0.0
+                if args.dryrun:
+                    continue
 
-        try:
-            x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
-        except:
-            logger.warning("Failed to calculate FSC, maybe the map is empty")
-            cutoff_05 = 0.0
-        map_list.append([mrc_file, real_space_cc, cutoff_05])
+                # Use asyncio to handle subprocess output
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    bufsize=1,
+                    universal_newlines=True,
+                    env=dict(os.environ, PYTHONUNBUFFERED="1")  # Force Python subprocess to be unbuffered
+                )
 
-    map_list.sort(key=lambda x: x[1], reverse=True)
-    for idx, (mrc_file, real_space_cc, golden_standard_fsc) in enumerate(map_list):
-        if idx == 0:
-            logger.opt(colors=True).info(
-                "Input map: "
-                + f"<blue>{mrc_file}</blue>"
-                + ", Real space CC: "
-                + f"<blue>{real_space_cc:.4f}</blue>"
-                + ", Golden standard FSC: "
-                + f"<blue>{golden_standard_fsc:.4f}</blue>"
-            )
-        else:
-            logger.opt(colors=True).info(
-                "Input map: "
-                + mrc_file
-                + ", Real space CC: "
-                + f"{real_space_cc:.4f}"
-                + ", Golden standard FSC: "
-                + f"{golden_standard_fsc:.4f}"
-            )
+                outputs = [process.stdout, process.stderr]
+                while outputs:
+                    readable, _, _ = select.select(outputs, [], [])
+                    for output in readable:
+                        line = output.readline()
+                        if not line:
+                            outputs.remove(output)
+                            continue
+                        if output == process.stdout:
+                            logger.info(line.strip())
+                        else:
+                            logger.error(line.strip())
+
+                # Wait for process to complete
+                process.wait()
+
+                # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                #                            universal_newlines=True)
+                # while True:
+                #     output = process.stdout.readline()
+                #     if output == "" and process.poll() is not None:
+                #         break
+                #     if output:
+                #         logger.info(output.strip())  # Log stdout
+                #
+                # rc = process.poll()
+                # while True:
+                #     err = process.stderr.readline()
+                #     if err == "" and process.poll() is not None:
+                #         break
+                #     if err:
+                #         logger.error(err.strip())  # Log stderr
+            try:
+                real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
+            except:
+                logger.warning("Failed to calculate real space CC")
+                real_space_cc = 0.0
+
+            try:
+                x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+            except:
+                logger.warning("Failed to calculate FSC")
+                cutoff_05 = 0.0
+            map_list.append([mrc_file, real_space_cc, cutoff_05])
+
+            if args.debug:
+                final_out_path = os.path.join(args.O, map_name)
+                shutil.copytree(curr_out_dir, final_out_path)
+            else:
+                # copyfiles to final output dir
+                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
+                            os.path.join(args.O, f"{map_name}_chain_base_prob.mrc"))
+                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
+                            os.path.join(args.O, f"{map_name}_chain_phosphate_prob.mrc"))
+                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
+                            os.path.join(args.O, f"{map_name}_chain_sugar_prob.mrc"))
+                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
+                            os.path.join(args.O, f"{map_name}_chain_protein_prob.mrc"))
+                shutil.copy(seg_map_path, os.path.join(args.O, f"{map_name}_segment.mrc"))
+                shutil.copy(prot_prob_path, os.path.join(args.O, f"{map_name}_mask_protein.mrc"))
+                shutil.copy(os.path.join(curr_out_dir, "CCC_FSC05.txt"), os.path.join(args.O, f"{map_name}_CCC_FSC05.txt"))
+
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        logger.error("Stack trace:", exc_info=True)
+    finally:
+        temp_dir.cleanup()
+
+    if not args.dryrun:
+        # sort by real space CC
+        map_list.sort(key=lambda x: x[1], reverse=True)
+        for idx, (mrc_file, real_space_cc, golden_standard_fsc) in enumerate(map_list):
+            if idx == 0:
+                logger.opt(colors=True).info(
+                    "Input map: "
+                    + f"<blue>{mrc_file}</blue>"
+                    + ", Real space CC: "
+                    + f"<blue>{real_space_cc:.4f}</blue>"
+                    + ", Golden standard FSC: "
+                    + f"<blue>{golden_standard_fsc:.4f}</blue>"
+                )
+            else:
+                logger.opt(colors=True).info(
+                    "Input map: "
+                    + mrc_file
+                    + ", Real space CC: "
+                    + f"{real_space_cc:.4f}"
+                    + ", Golden standard FSC: "
+                    + f"{golden_standard_fsc:.4f}"
+                )
