@@ -87,6 +87,7 @@ parser.add_argument("-g", "--device", type=str, help="GPU ID to use for CryoREAD
 parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
 parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
 parser.add_argument("-r","--reso", type=str, help="Resolution to choose the deep learning model", default="Low")
+parser.add_argument("-b","--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
 
 ### parser.add_argument("-m", "--model_star",           type=str,                                             help = "Input model star file Path (relative).")
 ### parser.add_argument("-r", "--script_repo",         type=str,                                              help = "Script repository directory path (full).")
@@ -95,6 +96,10 @@ args, unknown = parser.parse_known_args()
 inargs_parts = args.input
 outargs_rpath = args.output
 gpu_ids = args.device
+# Determine resolution of model to use
+reso_input = 8.0 if args.reso == "Low" else 2.0
+# batch size to use for CryoREAD prediction
+batch_size = args.batch
 ### model_star_rpath =str( args.model_star)
 ### script_repo_fpath = str(args.script_repo)
 invalid_str = "GTF_INVALID_STR"
@@ -204,9 +209,9 @@ try:
             f"-F={mrc_file}",
             "--contour=0",
             f"--gpu={gpu_ids}",
-            f"--batch_size=8",  # TODO: Automatic Batch Sizing or expose this as parameter
+            f"--batch_size={batch_size}",
             f"--prediction_only",
-            f"--resolution=8.0",
+            f"--resolution={reso_input}",
             f"--output={curr_out_dir}",
         ]
         print('[GTF_DEBUG] cmd : ', " ".join(cmd))

@@ -11,10 +11,10 @@ import select
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-F", nargs="+", type=str, help="List of input mrc files", required=True)
-    parser.add_argument("-G", type=str, help="GPU ID to use for prediction", required=False, default="")
-    parser.add_argument("-O", type=str, help="Output folder name", required=True)
-    parser.add_argument("-B", type=int, help="Batch size to use", required=False, default=4)
+    parser.add_argument("-f", "--files", nargs="+", type=str, help="List of input mrc files", required=True)
+    parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for prediction", required=False, default="")
+    parser.add_argument("-o", "--output", type=str, help="Output folder name", required=True)
+    parser.add_argument("-b", "--batch", type=int, help="Batch size to use", required=False, default=4)
     parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode to generate full output")
     parser.add_argument("-r","--reso", choices=["Low", "High"], type=str, help="Resolution to choose the deep learning model", default="Low")
@@ -22,19 +22,19 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    os.makedirs(args.O, exist_ok=True)
+    os.makedirs(args.output, exist_ok=True)
 
     logger.add("AutoClass3D.log")
 
     # Determine resolution of model to use
     reso_input = 8.0 if args.reso == "Low" else 2.0
 
-    logger.info("Input job folder path: ", args.F)
+    logger.info("Input job folder path: ", args.files)
 
     CURR_SCIPT_PATH = Path(__file__).absolute().parent
     CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
 
-    mrc_files = args.F
+    mrc_files = args.files
     # check if files exists
     for mrc_file in mrc_files:
         if not os.path.exists(mrc_file):
@@ -71,7 +71,7 @@ if __name__ == "__main__":
                     f"-F={mrc_file}",
                     "--contour=0",
                     f"--gpu={args.G}",
-                    f"--batch_size={args.B}",
+                    f"--batch_size={args.batch}",
                     f"--prediction_only",
                     f"--resolution={reso_input}",
                     f"--output={curr_out_dir}",
@@ -92,6 +92,7 @@ if __name__ == "__main__":
                     env=dict(os.environ, PYTHONUNBUFFERED="1")  # Force Python subprocess to be unbuffered
                 )
 
+                # Read and print output
                 outputs = [process.stdout, process.stderr]
                 while outputs:
                     readable, _, _ = select.select(outputs, [], [])
@@ -107,23 +108,6 @@ if __name__ == "__main__":
 
                 # Wait for process to complete
                 process.wait()
-
-                # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                #                            universal_newlines=True)
-                # while True:
-                #     output = process.stdout.readline()
-                #     if output == "" and process.poll() is not None:
-                #         break
-                #     if output:
-                #         logger.info(output.strip())  # Log stdout
-                #
-                # rc = process.poll()
-                # while True:
-                #     err = process.stderr.readline()
-                #     if err == "" and process.poll() is not None:
-                #         break
-                #     if err:
-                #         logger.error(err.strip())  # Log stderr
             try:
                 real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
             except:
@@ -138,21 +122,21 @@ if __name__ == "__main__":
             map_list.append([mrc_file, real_space_cc, cutoff_05])
 
             if args.debug:
-                final_out_path = os.path.join(args.O, map_name)
+                final_out_path = os.path.join(args.output, map_name)
                 shutil.copytree(curr_out_dir, final_out_path)
             else:
                 # copyfiles to final output dir
                 shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
-                            os.path.join(args.O, f"{map_name}_chain_base_prob.mrc"))
+                            os.path.join(args.output, f"{map_name}_chain_base_prob.mrc"))
                 shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
-                            os.path.join(args.O, f"{map_name}_chain_phosphate_prob.mrc"))
+                            os.path.join(args.output, f"{map_name}_chain_phosphate_prob.mrc"))
                 shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
-                            os.path.join(args.O, f"{map_name}_chain_sugar_prob.mrc"))
+                            os.path.join(args.output, f"{map_name}_chain_sugar_prob.mrc"))
                 shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
-                            os.path.join(args.O, f"{map_name}_chain_protein_prob.mrc"))
-                shutil.copy(seg_map_path, os.path.join(args.O, f"{map_name}_segment.mrc"))
-                shutil.copy(prot_prob_path, os.path.join(args.O, f"{map_name}_mask_protein.mrc"))
-                shutil.copy(os.path.join(curr_out_dir, "CCC_FSC05.txt"), os.path.join(args.O, f"{map_name}_CCC_FSC05.txt"))
+                            os.path.join(args.output, f"{map_name}_chain_protein_prob.mrc"))
+                shutil.copy(seg_map_path, os.path.join(args.output, f"{map_name}_segment.mrc"))
+                shutil.copy(prot_prob_path, os.path.join(args.output, f"{map_name}_mask_protein.mrc"))
+                shutil.copy(os.path.join(curr_out_dir, "CCC_FSC05.txt"), os.path.join(args.output, f"{map_name}_CCC_FSC05.txt"))
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")
