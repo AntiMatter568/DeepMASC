@@ -140,9 +140,9 @@ if __name__ == "__main__":
         prot_prob_path = os.path.join(save_path, "mask_protein.mrc")
 
         real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-        x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
-
         print("CCC: %.4f" % real_space_cc)
+
+        x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
         print("FSC: %.4f" % cutoff_05)
 
         # write to file

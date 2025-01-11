@@ -182,11 +182,9 @@ def calculate_fsc(vol1_f, vol2_f, Apix=1.0, output_f=None):
         pass
 
     w = np.where(fsc < 0.5)
-    if w:
-        cutoff_05 = 1 / x[w[0][0]] * Apix
+    cutoff_05 = 1 / x[w[0][0]] * Apix if len(w) > 0 and len(w[0]) > 0 else None
 
     w = np.where(fsc < 0.143)
-    if w:
-        cutoff_0143 = 1 / x[w[0][0]] * Apix
+    cutoff_0143 = 1 / x[w[0][0]] * Apix if len(w) > 0 and len(w[0]) > 0 else None
 
     return x, fsc, cutoff_05, cutoff_0143

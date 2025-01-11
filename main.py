@@ -16,7 +16,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, help="Output folder name", required=True)
     parser.add_argument("-b", "--batch", type=int, help="Batch size to use", required=False, default=4)
     parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode to generate full output")
+    parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
     parser.add_argument("-r","--reso", choices=["Low", "High"], type=str, help="Resolution to choose the deep learning model", default="Low")
     parser.add_argument("--dryrun", action="store_true", help="Dry run, do not run CryoREAD but just print commands")
 

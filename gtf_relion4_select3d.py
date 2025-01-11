@@ -236,7 +236,7 @@ def gtf_create_relion4_category_dict():
 # Exteranl/job###/ Exteranl/job###/???.star
 # ++++++++++++++++++++++++++++++
 #
-def run(relion_class3d_model_star_file_rpath, relion_job_dir_rpath, relion_project_dir_fpath=None):
+def run_class3d(relion_class3d_model_star_file_rpath, relion_job_dir_rpath, relion_project_dir_fpath=None):
     gtf_print('[GTF_DEBUG] relion_class3d_model_star_file_rpath = {}'.format(relion_class3d_model_star_file_rpath))
     gtf_print('[GTF_DEBUG] relion_job_dir_rpath = {}'.format(relion_job_dir_rpath))
     gtf_print('[GTF_DEBUG] relion_project_dir_fpath = {}'.format(relion_project_dir_fpath))
@@ -665,48 +665,151 @@ def run(relion_class3d_model_star_file_rpath, relion_job_dir_rpath, relion_proje
     return class3d_sort_table
 
 
+def run_initialmodel(input_initial_model_star_file, relion_job_dir_rpath, relion_project_dir_fpath=None):
+    """
+    Process RELION initial model star file
+
+    Args:
+        input_initial_model_star_file (str): Path to input star file
+        relion_job_dir_rpath (str): Relative path to RELION job directory
+        relion_project_dir (str, optional): RELION project directory
+
+    Returns:
+        dict: Extracted parameters and analysis results
+    """
+    # Debug prints
+    print('[GTF_DEBUG] input_initial_model_star_file :', input_initial_model_star_file)
+    print('[GTF_DEBUG] relion_job_dir_rpath :', relion_job_dir_rpath)
+    print('[GTF_DEBUG] relion_project_dir :', relion_project_dir_fpath)
+
+    # if (not os.path.exists(input_initial_model_star_file)):
+    #     gtf_print('[GTF_ERROR] Input RELION class3d model star file "{}" is not found.'.format(
+    #         input_initial_model_star_file))
+    #     return
+    #
+    # if (not os.path.exists(relion_job_dir_rpath)):
+    #     gtf_print(
+    #         '[GTF_ERROR] RELION job directory "{]" does not exist. The script assumes the output directory exists already'.format(
+    #             relion_job_dir_rpath))
+    #     return
+    #
+    # if relion_project_dir_fpath is not None:
+    #     if not os.path.exists(relion_project_dir_fpath):
+    #         gtf_print(
+    #             '[GTF_ERROR] Specified RELION project directory "{}" does not exist.'.format(relion_project_dir_fpath))
+    #         return
+
+    import starfile
+
+    try:
+        df = starfile.read(input_initial_model_star_file)
+    except:
+        gtf_print('[GTF_ERROR] Failed to read input_initial_model_star_file :', input_initial_model_star_file)
+        return
+
+    if "model_general" not in df.keys() or "model_classes" not in df.keys():
+        gtf_print('[GTF_ERROR] model_general or model_classes not found in input_initial_model_star_file')
+        return
+
+    # Create sorting table
+    initialmodel_sort_table = []
+    model_classes = df["model_classes"]
+
+    # Create entries for each class
+    for idx, row in model_classes.iterrows():
+        initialmodel_sort_entry = [
+            row['rlnReferenceImage'],  # Map file path
+            str(row['rlnClassDistribution']),  # Distribution
+            str(row['rlnAccuracyRotations']),  # Accuracy rotations
+            str(row['rlnAccuracyTranslationsAngst']),  # Accuracy translations
+            str(row['rlnEstimatedResolution']),  # Estimated resolution
+            str(row['rlnOverallFourierCompleteness']),  # Fourier completeness
+            idx + 1  # Class ID (1-based)
+        ]
+        initialmodel_sort_table.append(initialmodel_sort_entry)
+
+    # Define indices for sorting
+    idx_initialmodel_map_dir_rpath = 0
+    idx_initialmodel_distribution = 1
+    idx_initialmodel_acc_rot = 2
+    idx_initialmodel_acc_trans = 3
+    idx_initialmodel_estimated_res = 4
+    idx_initialmodel_fourier_comp = 5
+    idx_initialmodel_class_id = 6
+
+    # Sort by distribution (descending)
+    print('[GTF_DEBUG] Sorted by Class Distribution:')
+    initialmodel_sort_table.sort(key=lambda x: float(x[idx_initialmodel_distribution]), reverse=True)
+    print(
+        '[GTF_DEBUG] Initial Model Sort Table Index: Model ID, Map File, Distribution, Acc Rot, Acc Trans, Resolution, Fourier Comp')
+    for i, entry in enumerate(initialmodel_sort_table):
+        print(f'[GTF_DEBUG] {i} : {entry[idx_initialmodel_class_id]}, '
+              f'{entry[idx_initialmodel_map_dir_rpath]}, '
+              f'{entry[idx_initialmodel_distribution]}, '
+              f'{entry[idx_initialmodel_acc_rot]}, '
+              f'{entry[idx_initialmodel_acc_trans]}, '
+              f'{entry[idx_initialmodel_estimated_res]}, '
+              f'{entry[idx_initialmodel_fourier_comp]}')
+
+    # Sort by estimated resolution (ascending)
+    print('\n[GTF_DEBUG] Sorted by Estimated Resolution:')
+    initialmodel_sort_table.sort(key=lambda x: float(x[idx_initialmodel_estimated_res]), reverse=False)
+
+    return initialmodel_sort_table
+
+
 # ----------------------------------------------------------------------------------------
 
-if __name__ == '__main__':
-    ###	sp_global_def.print_timestamp( "Start" )
-    # Parse command argument
-    arglist = []
-    for arg in sys.argv:
-        arglist.append(arg)
+# if __name__ == '__main__':
+#     args = sys.argv
+#
+#     input_initial_model_star_file = args[1]
+#     relion_job_dir_rpath = args[2]
+#
+#     initialmodel_sort_table = run_initialmodel(input_initial_model_star_file, relion_job_dir_rpath, None)
 
-    progname = os.path.basename(arglist[0])
-    usage = progname + '  input_class3d_model_star_file  output_directory  --relion_project_dir=DIR_PATH'
-    parser = OptionParser(usage, version="0.0.0")
+# ----------------------------------------------------------------------------------------
 
-    parser.add_option('--relion_project_dir', type='string', default=None,
-                      help='RELION project directory: Path to RELION project directory associated with the RELION Micrographs STAR file. By default, the program assume the current directory is the RELION project directory. (default none)')
-
-    (options, args) = parser.parse_args(arglist[1:])
-
-    # ------------------------------------------------------------------------------------
-    # Check validity of input arguments and options
-    # ------------------------------------------------------------------------------------
-    if len(args) != 2:
-        gtf_print("Usage: " + usage)
-        gtf_print("Please run \'" + progname + " -h\' for detailed options")
-        gtf_print(
-            "[GTF_ERROR] Missing paths to input Class3D Model STAR file and output directory. Please see usage information above")
-        sys.exit()  ### return <<<< SyntaxError: 'return' outside function
-
-    gtf_print('# ')
-    gtf_print('# %s' % gtf_get_cmd_line())
-    gtf_print('# ')
-
-    # Rename arguments and options for readability
-    args_file_path_relion_star = args[0]
-    args_dir_path_work = args[1]
-
-    options_dir_path_relion_project = options.relion_project_dir
-
-    run(args_file_path_relion_star, args_dir_path_work, options_dir_path_relion_project)
-
-    gtf_print('# ')
-    gtf_print('# DONE!')
+# if __name__ == '__main__':
+#     ###	sp_global_def.print_timestamp( "Start" )
+#     # Parse command argument
+#     arglist = []
+#     for arg in sys.argv:
+#         arglist.append(arg)
+#
+#     progname = os.path.basename(arglist[0])
+#     usage = progname + '  input_class3d_model_star_file  output_directory  --relion_project_dir=DIR_PATH'
+#     parser = OptionParser(usage, version="0.0.0")
+#
+#     parser.add_option('--relion_project_dir', type='string', default=None,
+#                       help='RELION project directory: Path to RELION project directory associated with the RELION Micrographs STAR file. By default, the program assume the current directory is the RELION project directory. (default none)')
+#
+#     (options, args) = parser.parse_args(arglist[1:])
+#
+#     # ------------------------------------------------------------------------------------
+#     # Check validity of input arguments and options
+#     # ------------------------------------------------------------------------------------
+#     if len(args) != 2:
+#         gtf_print("Usage: " + usage)
+#         gtf_print("Please run \'" + progname + " -h\' for detailed options")
+#         gtf_print(
+#             "[GTF_ERROR] Missing paths to input Class3D Model STAR file and output directory. Please see usage information above")
+#         sys.exit()  ### return <<<< SyntaxError: 'return' outside function
+#
+#     gtf_print('# ')
+#     gtf_print('# %s' % gtf_get_cmd_line())
+#     gtf_print('# ')
+#
+#     # Rename arguments and options for readability
+#     args_file_path_relion_star = args[0]
+#     args_dir_path_work = args[1]
+#
+#     options_dir_path_relion_project = options.relion_project_dir
+#
+#     run(args_file_path_relion_star, args_dir_path_work, options_dir_path_relion_project)
+#
+#     gtf_print('# ')
+#     gtf_print('# DONE!')
 
 ###	sp_global_def.print_timestamp( "Finish" )
 

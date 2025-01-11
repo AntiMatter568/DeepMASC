@@ -83,7 +83,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input", "--in_parts", type=str,
                     help="RELION requirement! Input particle star file Path (relative)")
 parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
-parser.add_argument("-g", "--device", type=str, help="GPU ID to use for CryoREAD prediction")
+parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD prediction")
 parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
 parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
 parser.add_argument("-r","--reso", type=str, help="Resolution to choose the deep learning model", default="Low")
@@ -95,7 +95,7 @@ args, unknown = parser.parse_known_args()
 
 inargs_parts = args.input
 outargs_rpath = args.output
-gpu_ids = args.device
+gpu_ids = args.gpus
 # Determine resolution of model to use
 reso_input = 8.0 if args.reso == "Low" else 2.0
 # batch size to use for CryoREAD prediction
@@ -160,26 +160,36 @@ print('[GTF_DEBUG] input_model_star_file_basename  : %s' % input_model_star_file
 print('[GTF_DEBUG] input_model_star_rpath          : %s' % input_model_star_rpath)
 assert os.path.exists(input_model_star_rpath), '# Logical Error: Input RELION DATA STAR file must exits.'
 
-class3d_sort_table = []
 import gtf_relion4_select3d
 
-class3d_sort_table = gtf_relion4_select3d.run(input_model_star_rpath, outargs_rpath, relion_project_dir_fpath=None)
-i_class3d_sort_table = 0
+# check if the job is InitialModel or Class3D
+if "InitialModel" in input_job_dir_rpath:
+    print('[GTF_DEBUG] Running InitialModel Model Selection')
+    sort_table = gtf_relion4_select3d.run_initialmodel(input_model_star_rpath, outargs_rpath, relion_project_dir_fpath=None)
+elif "Class3D" in input_job_dir_rpath:
+    print('[GTF_DEBUG] Running Class3D Model Selection')
+    sort_table = gtf_relion4_select3d.run_class3d(input_model_star_rpath, outargs_rpath, relion_project_dir_fpath=None)
+else:
+    print('[GTF_ERROR] Unknown job type : ', input_job_dir_rpath)
+    exit(1)
+
+print('[GTF_DEBUG] sort_table : ', sort_table)
+
+i_sort_table = 0
 print('[GTF_DEBUG] Class3D Sort Table Index: Class3D ID, Map File, Resolution, Distribution')
-for class3d_sort_entry_list in class3d_sort_table:
-    print('[GTF_DEBUG]   ', i_class3d_sort_table, ' : ', class3d_sort_entry_list[idx_class3d_gtc_class3d_id], ', ',
-          class3d_sort_entry_list[idx_class3d_map_dir_rpath], ', ', class3d_sort_entry_list[idx_class3d_estimated_res],
-          ', ', class3d_sort_entry_list[idx_class3d_distribution])
-    i_class3d_sort_table += 1
+for sort_entry_list in sort_table:
+    print('[GTF_DEBUG]   ', i_sort_table, ' : ', sort_entry_list[idx_class3d_gtc_class3d_id], ', ',
+          sort_entry_list[idx_class3d_map_dir_rpath], ', ', sort_entry_list[idx_class3d_estimated_res],
+          ', ', sort_entry_list[idx_class3d_distribution])
+    i_sort_table += 1
 print('')
 
 # CryoREAD
-CURR_SCIPT_PATH = Path(__file__).absolute().parent
-CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
-OUTDIR = os.path.abspath(outargs_rpath)
+CURR_SCRIPT_PATH = Path(__file__).absolute().parent
+FINAL_OUTDIR = os.path.abspath(outargs_rpath)
 TEMP_CURR_DIR = os.getcwd()
 input_job_dir_rpath_abs = os.path.abspath(input_job_dir_rpath)
-os.chdir(CURR_SCIPT_PATH)
+os.chdir(CURR_SCRIPT_PATH)
 result_list_cryoREAD = []
 
 # Create the temp directory if it doesn't exist
@@ -190,15 +200,15 @@ try:
     temp_dir_name = temp_dir.name
     print('[GTF_DEBUG] Created temporary directory', temp_dir_name)
 
-    for class3d_sort_entry_list in class3d_sort_table:
+    for sort_entry_list in sort_table:
         mrc_file = os.path.join(input_job_dir_rpath_abs,
-                                class3d_sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
+                                sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
         print('[GTF_DEBUG] Running CryoREAD on mrc_file : ', mrc_file)
         map_name = Path(mrc_file).stem.split(".")[0].strip()
         curr_out_dir = os.path.join(temp_dir.name, map_name)
         print('[GTF_DEBUG] curr_out_dir : ', curr_out_dir)
         os.makedirs(curr_out_dir, exist_ok=True)
-        class_id = int(class3d_sort_entry_list[idx_class3d_gtc_class3d_id])
+        class_id = int(sort_entry_list[idx_class3d_gtc_class3d_id])
         seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
         prot_prob_path = os.path.join(curr_out_dir, "mask_protein.mrc")
         cmd = [
@@ -214,7 +224,7 @@ try:
             f"--resolution={reso_input}",
             f"--output={curr_out_dir}",
         ]
-        print('[GTF_DEBUG] cmd : ', " ".join(cmd))
+        print('[GTF_DEBUG] CryoREAD Command : ', " ".join(cmd))
         process = subprocess.run(cmd, shell=False, text=True)
         output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
         metrics = []
@@ -226,20 +236,20 @@ try:
 
         if args.debug:
             # copy all files to final output dir
-            shutil.copytree(curr_out_dir, os.path.join(OUTDIR, map_name))
+            shutil.copytree(curr_out_dir, os.path.join(FINAL_OUTDIR, map_name))
         else:
             # copyfiles to final output dir
             shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
-                        os.path.join(OUTDIR, f"{map_name}_chain_base_prob.mrc"))
+                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_base_prob.mrc"))
             shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
-                        os.path.join(OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"))
+                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"))
             shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
-                        os.path.join(OUTDIR, f"{map_name}_chain_sugar_prob.mrc"))
+                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_sugar_prob.mrc"))
             shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
-                        os.path.join(OUTDIR, f"{map_name}_chain_protein_prob.mrc"))
-            shutil.copy(seg_map_path, os.path.join(OUTDIR, f"{map_name}_segment.mrc"))
-            shutil.copy(prot_prob_path, os.path.join(OUTDIR, f"{map_name}_mask_protein.mrc"))
-            shutil.copy(output_file, os.path.join(OUTDIR, f"{map_name}_CCC_FSC05.txt"))
+                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_protein_prob.mrc"))
+            shutil.copy(seg_map_path, os.path.join(FINAL_OUTDIR, f"{map_name}_segment.mrc"))
+            shutil.copy(prot_prob_path, os.path.join(FINAL_OUTDIR, f"{map_name}_mask_protein.mrc"))
+            shutil.copy(output_file, os.path.join(FINAL_OUTDIR, f"{map_name}_CCC_FSC05.txt"))
 
         # try:
         #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
