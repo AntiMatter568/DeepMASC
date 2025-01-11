@@ -66,6 +66,7 @@ import argparse
 import os
 import shutil  # copyfile
 import tempfile
+import select
 import sys
 import pprint
 from pathlib import Path
@@ -225,7 +226,35 @@ try:
             f"--output={curr_out_dir}",
         ]
         print('[GTF_DEBUG] CryoREAD Command : ', " ".join(cmd))
-        process = subprocess.run(cmd, shell=False, text=True)
+        # process = subprocess.run(cmd, shell=False, text=True)
+
+        # Use asyncio to handle subprocess output
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1,
+            universal_newlines=True,
+            env=dict(os.environ, PYTHONUNBUFFERED="1")  # Force Python subprocess to be unbuffered
+        )
+
+        # Read and print output
+        outputs = [process.stdout, process.stderr]
+        while outputs:
+            readable, _, _ = select.select(outputs, [], [])
+            for output in readable:
+                line = output.readline()
+                if not line:
+                    outputs.remove(output)
+                    continue
+                if output == process.stdout:
+                    print(line.strip())
+                else:
+                    print(line.strip())
+
+        # Wait for process to complete
+        process.wait()
+
         output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
         metrics = []
         with open(output_file, "r") as f:
