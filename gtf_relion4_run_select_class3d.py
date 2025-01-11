@@ -190,7 +190,7 @@ CURR_SCRIPT_PATH = Path(__file__).absolute().parent
 FINAL_OUTDIR = os.path.abspath(outargs_rpath)
 TEMP_CURR_DIR = os.getcwd()
 input_job_dir_rpath_abs = os.path.abspath(input_job_dir_rpath)
-os.chdir(CURR_SCRIPT_PATH)
+os.chdir(CURR_SCRIPT_PATH / "CryoREAD")
 result_list_cryoREAD = []
 
 # Create the temp directory if it doesn't exist
