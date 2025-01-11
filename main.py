@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--files", nargs="+", type=str, help="List of input mrc files", required=True)
-    parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for prediction", required=False, default="")
+    parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for prediction", required=True)
     parser.add_argument("-o", "--output", type=str, help="Output folder name", required=True)
     parser.add_argument("-b", "--batch", type=int, help="Batch size to use", required=False, default=4)
     parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
