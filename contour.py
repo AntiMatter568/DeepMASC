@@ -40,7 +40,7 @@ def create_spherical_mask(array_shape, radius=95):
     return dist_from_center <= radius
 
 
-def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None):
+def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_level=0.0):
     output_folder = str(Path(output_folder).absolute())
     TEMP_CURR_DIR = os.getcwd()
     os.chdir(CRYOREAD_PATH)
@@ -51,11 +51,11 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None):
             "main.py",
             "--mode=0",
             f"-F={mrc_path}",
-            "--contour=0",
+            f"--contour={contour_level}",
             f"--gpu={gpu_id}",
             f"--batch_size={batch_size}",
             f"--prediction_only",
-            f"--resolution=3.0",
+            f"--resolution=2.0",
             f"--output={output_folder}",
         ]
 
@@ -251,10 +251,10 @@ def gmm_mask(input_map_path, output_folder, num_components=2, use_grad=False, n_
         agg_mask = np.zeros_like(map_data)
         agg_mask[np.nonzero(masked_map_data)] = new_preds != ind_noise_second
         save_mrc(input_map_path, agg_mask, os.path.join(output_folder, Path(input_map_path).stem + "_mask.mrc"))
+        mask_percent = np.count_nonzero(masked_map_data > 1e-8) / np.count_nonzero(map_data > 1e-8)
     else:
         save_mrc(input_map_path, mask, os.path.join(output_folder, Path(input_map_path).stem + "_mask.mrc"))
-
-    mask_percent = np.count_nonzero(masked_map_data > 1e-8) / np.count_nonzero(map_data > 1e-8)
+        mask_percent = np.count_nonzero(masked_map_data > 1e-8) / np.count_nonzero(map_data > 1e-8)
 
     # plot the histogram
     fig, ax = plt.subplots(figsize=(10, 2))
@@ -273,6 +273,8 @@ def gmm_mask(input_map_path, output_folder, num_components=2, use_grad=False, n_
         f.write(f"Masked percentage: {mask_percent}\n")
 
     # return revised contour level and mask percent
+    if aggressive:
+        return revised_contour_agg, mask_percent
     return revised_contour, mask_percent
 
 
@@ -292,24 +294,25 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--aggressive", action="store_true", help="Use more aggressive mask cutoff when using GMM mask")
     args = parser.parse_args()
 
+    revised_contour, mask_percent = gmm_mask(
+        input_map_path=args.input_map_path,
+        output_folder=args.output_folder,
+        num_components=args.num_components,
+        use_grad=True,
+        n_init=3,
+        plot_all=args.plot_all,
+        morph_radius=args.morph_radius,
+        mask_diameter=args.mask_diameter,
+        aggressive=args.aggressive,
+    )
+
     if args.refinement_mask:
         run_cryoREAD(
             mrc_path=args.input_map_path,
             output_folder=args.output_folder,
             batch_size=args.batch_size,
             gpu_id=args.gpu_id,
+            contour_level=revised_contour,
         )
-        final_protein_prob = os.path.join(args.output_folder, "2nd_stage_detection", "chain_protein_prob.mrc")
-
-    else:
-        revised_contour, mask_percent = gmm_mask(
-            input_map_path=args.input_map_path,
-            output_folder=args.output_folder,
-            num_components=args.num_components,
-            use_grad=True,
-            n_init=3,
-            plot_all=args.plot_all,
-            morph_radius=args.morph_radius,
-            mask_diameter=args.mask_diameter,
-            aggressive=args.aggressive,
-        )
+        # final_protein_prob = os.path.join(args.output_folder, "2nd_stage_detection", "chain_protein_prob.mrc")
+        # logger.info(f"Final protein probability map is saved at: {final_protein_prob}")
