@@ -130,22 +130,34 @@ Optional Arguments:
 ## Arguments for Auto Contouring
 
 ```
-
--i: Input MRC map file to determine the contour
--o: Output folder to store all the files
--p: Plot all components (Optional, False by default)
--n: Number of intializations (Optional, 3 by default)
-
+python contour.py -i <input_map_path> -o <output_folder> -g <gpu_id> [optional arguments]
 ```
+
+### Arguments
+
+**Required Arguments:**
+* `-i, --input_map_path`: Input MRC map file to determine the contour
+* `-o, --output_folder`: Output folder to store all the files
+* `-g, --gpu_id`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing.
+
+**Optional Arguments:**
+* `-p, --plot_all`: Plot all components (default: False)
+* `-n, --num_components`: Number of components for mixture model (default: 2)
+* `-r, --refinement_mask`: Generate more fine-grained mask for refinement (default: False)
+* `-b, --batch_size`: Batch size for CryoREAD prediction (default: 8)
+* `-m, --morph_radius`: Radius for morphological operations (opening, closing) (default: 3)
+* `-d, --mask_diameter`: The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable (default: 95)
+* `-a, --aggressive`: Use more aggressive mask cutoff when using GMM mask (default: False)
+
 
 ## Example for GMM Auto Contouring for Rough Masking
 
 ```bash
-python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p
+python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p
 ```
 
 ## Example for CryoREAD Auto Refinement Masking
 
 ```bash
-python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -p -r
+python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p -r -b 16
 ```
