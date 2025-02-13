@@ -13,7 +13,8 @@ from scipy.ndimage import zoom
 
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 from loguru import logger
 
 # change to relative path to this file
@@ -28,14 +29,10 @@ def create_spherical_mask(array_shape, radius=95):
     min_dim = min(array_shape)
     radius = (min_dim * radius / 100) / 2
 
-    z, y, x = np.ogrid[:array_shape[0], :array_shape[1], :array_shape[2]]
+    z, y, x = np.ogrid[: array_shape[0], : array_shape[1], : array_shape[2]]
     center_z, center_y, center_x = array_shape[0] / 2, array_shape[1] / 2, array_shape[2] / 2
 
-    dist_from_center = np.sqrt(
-        (x - center_x) ** 2 +
-        (y - center_y) ** 2 +
-        (z - center_z) ** 2
-    )
+    dist_from_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2 + (z - center_z) ** 2)
 
     return dist_from_center <= radius
 
@@ -99,7 +96,17 @@ def gen_features(map_array):
     return features
 
 
-def gmm_mask(input_map_path, output_folder, num_components=2, use_grad=False, n_init=1, plot_all=False, morph_radius=3, mask_diameter=95, aggressive=False):
+def gmm_mask(
+    input_map_path,
+    output_folder,
+    num_components=2,
+    use_grad=False,
+    n_init=1,
+    plot_all=False,
+    morph_radius=3,
+    mask_diameter=95,
+    aggressive=False,
+):
     logger.info(f"Input map path: {input_map_path}")
     logger.info(f"Output folder: {output_folder}")
 
@@ -290,7 +297,14 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--refinement_mask", action="store_true", help="Generate more fine-grained mask for refinement")
     parser.add_argument("-b", "--batch_size", type=int, default=8, help="The batch size for cryoREAD prediction")
     parser.add_argument("-m", "--morph_radius", type=int, default=3, help="The radius for morphological operations (opening, closing)")
-    parser.add_argument("-d", "--mask_diameter", type=int, default=95, choices=range(0,101), help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable")
+    parser.add_argument(
+        "-d",
+        "--mask_diameter",
+        type=int,
+        default=95,
+        choices=range(0, 101),
+        help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable",
+    )
     parser.add_argument("-a", "--aggressive", action="store_true", help="Use more aggressive mask cutoff when using GMM mask")
     args = parser.parse_args()
 
@@ -314,5 +328,3 @@ if __name__ == "__main__":
             gpu_id=args.gpu_id,
             contour_level=revised_contour,
         )
-        # final_protein_prob = os.path.join(args.output_folder, "2nd_stage_detection", "chain_protein_prob.mrc")
-        # logger.info(f"Final protein probability map is saved at: {final_protein_prob}")
