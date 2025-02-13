@@ -129,11 +129,9 @@ Optional Arguments:
 
 ## Arguments for Auto Contouring
 
-```
-python contour.py -i <input_map_path> -o <output_folder> -g <gpu_id> [optional arguments]
-```
-
 ### Arguments
+
+<details>
 
 **Required Arguments:**
 * `-i, --input_map_path`: Input MRC map file to determine the contour
@@ -149,7 +147,6 @@ python contour.py -i <input_map_path> -o <output_folder> -g <gpu_id> [optional a
 * `-d, --mask_diameter`: The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable (default: 95)
 * `-a, --aggressive`: Use more aggressive mask cutoff when using GMM mask (default: False)
 
-
 ## Example for GMM Auto Contouring for Rough Masking
 
 ```bash
@@ -161,3 +158,21 @@ python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p
 ```bash
 python contour.py -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p -r -b 16
 ```
+
+</details>
+
+### Mask Generation Process
+
+<details>
+
+1. (Optional) Apply a spherical mask (diameter controlled by `--mask_diameter`, default: 95% of the map's smallest dimension, set to 0 to disable) to eliminate padding skip artifacts in the corners.
+2. Extract all intensity and gradient features from the map where the value is non-zero.
+3. Apply a Bayesian GMM (Gaussian Mixture Model) to classify non-zero voxels in the previous step into a specified number of components (controlled by `--num_components`, default: 2) using the features.
+4. The component with mean intensity closest to zero is labeled noise and excluded from the mask.
+5. (Optional) Morphological operations are applied. Closing (fills holes) followed by opening (removes isolated points) using a spherical kernel with radius controlled by `--morph_radius` (default: 3 pixels, set to 0 to disable) to clean the mask.
+6. (Optional) If aggressive masking is enabled (`--aggressive`), a secondary GMM further splits the retained voxels to remove weaker signal regions.
+7. The final binary mask is saved as "{original_file_name}_mask.mrc", preserving original voxel dimensions and header metadata. If `--plot_all` is enabled, histograms for each component will be saved.
+8. (Optional) When `--refinement_mask` is used, the mask's contour level feeds into CryoREAD's neural network for detailed protein segmentation.
+
+
+</details>
