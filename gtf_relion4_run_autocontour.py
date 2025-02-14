@@ -108,6 +108,10 @@ if __name__ == "__main__":
     print("[GTF_DEBUG] input_selected_map_mrc_file_basename   : %s" % input_selected_map_mrc_file)
     assert os.path.exists(input_selected_map_mrc_file), "# Logical Error: Input Select Model Map MRC file must exist."
 
+    CURR_SCRIPT_PATH = Path(__file__).absolute().parent
+    TEMP_CURR_DIR = os.getcwd()
+    os.chdir(CURR_SCRIPT_PATH)
+
     """AutoContour >>>"""
     cmd = [
         "pixi",
@@ -153,6 +157,7 @@ if __name__ == "__main__":
 
     # Wait for process to complete
     process.wait()
+    os.chdir(TEMP_CURR_DIR)
     """<<< AutoContour"""
 
     """Finishing up >>>"""
