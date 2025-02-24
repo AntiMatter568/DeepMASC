@@ -12,31 +12,25 @@ cuda = "11"
 [tasks]
 cryoread = "PYTHONNOUSERSITE=1 python ./CryoREAD/main.py"
 test_cuda = "PYTHONNOUSERSITE=1 python -c \"import torch; print(torch.cuda.is_available())\""
-autoclass3d = "python main.py"
-autocontour = "python contour.py"
 
 [dependencies]
 python = "3.11.*"
 cuda = { version = "*", channel = "nvidia/label/cuda-11.8.0"}
 pytorch = { version = "2.0.*", channel = "pytorch" }
 pytorch-cuda = { version = "11.8.*", channel = "pytorch"}
-scikit-learn = ">=1.6.0,<2"
-scikit-image = ">=0.25.0,<0.26"
+scikit-learn = "*"
+scikit-image = "*"
 matplotlib = "*"
 biopython = "*"
 numba = "*"
 numpy = "<2"
 scipy = "*"
 tqdm = "*"
-mrcfile = ">=1.5.3,<2"
-loguru = ">=0.7.2,<0.8"
+mrcfile = "*"
+loguru = "*"
 mkl = "2024.0.*"
-scalene = ">=1.5.41,<2"
-pixi-pycharm = ">=0.0.8,<0.0.9"
-coverage = ">=7.6.10,<8"
 
 [pypi-dependencies]
 ortools = ">=9.11.4210, <10"
 progress = ">=1.6, <2"
 numba-progress = ">=1.1.0, <2"
-starfile = ">=0.5.11, <0.6"
