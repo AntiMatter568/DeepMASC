@@ -31,7 +31,7 @@ if __name__ == "__main__":
     print("running ...")
     parser = argparse.ArgumentParser()
     # --in_YYY: YYY is the type of the input node: movies, mics, parts, coords, 3dref, or mask,
-    parser.add_argument("-i", "--input", "--in_parts", type=str, help="RELION requirement! Input particle star file Path (relative)")
+    parser.add_argument("-i", "--input", "--in_3dref", type=str, help="RELION requirement! Input mrc file Path (relative)")
     parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
     parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD prediction", default="0")
     parser.add_argument("-b", "--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
@@ -94,17 +94,17 @@ if __name__ == "__main__":
     # sys.path.append(script_repo_fpath)
     # pprint.pprint(sys.path)
 
-    assert os.path.exists(inargs_parts), "# Logical Error: Input RELION DATA STAR file must exits."
-    input_job_dir_rpath, input_data_star_file_basename = os.path.split(inargs_parts)
+    assert os.path.exists(inargs_parts), "# Logical Error: Input MRC file must exits."
+    input_job_dir_rpath, input_data_mrc_file_basename = os.path.split(inargs_parts)
     print("[GTF_DEBUG] input_job_dir_rpath            : %s" % input_job_dir_rpath)
-    print("[GTF_DEBUG] input_data_star_file_basename  : %s" % input_data_star_file_basename)
+    print("[GTF_DEBUG] input_data_mrc_file_basename  : %s" % input_data_mrc_file_basename)
     """<<< Preparation"""
 
     """Input >>>"""
 
-    input_selected_map_mrc_file = os.path.join(input_job_dir_rpath, "selected_model_map.mrc")
-    print("[GTF_DEBUG] input_selected_map_mrc_file_basename   : %s" % input_selected_map_mrc_file)
-    assert os.path.exists(input_selected_map_mrc_file), "# Logical Error: Input Select Model Map MRC file must exist."
+    # input_selected_map_mrc_file = os.path.join(input_job_dir_rpath, input_data_mrc_file_basename)
+    # print("[GTF_DEBUG] input_selected_map_mrc_file_basename   : %s" % input_selected_map_mrc_file)
+    # assert os.path.exists(input_selected_map_mrc_file), "# Logical Error: Input Select Model Map MRC file must exist."
 
     CURR_SCRIPT_PATH = Path(__file__).absolute().parent
     TEMP_CURR_DIR = os.getcwd()
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         "pixi",
         "run",
         "autocontour",
-        f"--input_map_path={input_selected_map_mrc_file}",
+        f"--input_map_path={inargs_parts}",
         f"--output_folder={outargs_rpath}",
         f"--gpu={gpu_ids}",
         f"--batch_size={batch_size}",
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     """Finishing up >>>"""
     # See the data_pipeline_nodes table in the default_pipeline.star file of any relion project directory for examples.
 
-    output_mask_mrc_file = os.path.join(outargs_rpath, "selected_model_map_mask.mrc")
+    output_mask_mrc_file = os.path.join(outargs_rpath, "mask_protein.mrc")
     assert os.path.exists(output_mask_mrc_file), f"# Logical Error: Output Mask MRC file ({output_mask_mrc_file}) must exist."
 
     print("Creating RELION_OUTPUT_NODES star file ...")
