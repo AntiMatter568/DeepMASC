@@ -15,10 +15,11 @@ import sys
 import pprint
 from pathlib import Path
 import starfile
+from glob import glob
 
 if __name__ == "__main__":
 
-    print("[GTF_DEBUG] Full command:", ' '.join(sys.argv))
+    print("[GTF_DEBUG] Full command:", " ".join(sys.argv))
 
     """<<< Import"""
 
@@ -30,16 +31,14 @@ if __name__ == "__main__":
     print("running ...")
     parser = argparse.ArgumentParser()
     # --in_YYY: YYY is the type of the input node: movies, mics, parts, coords, 3dref, or mask,
-    parser.add_argument("-i", "--input", "--in_parts", type=str,
-                        help="RELION requirement! Input particle star file Path (relative)")
+    parser.add_argument("-i", "--input", "--in_parts", type=str, help="RELION requirement! Input particle star file Path (relative)")
     parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
     parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD prediction", default="0")
     parser.add_argument("-b", "--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
     parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
     parser.add_argument("-n", "--num_components", type=int, default=2, help="Number of components for mixture model")
     parser.add_argument("-r", "--refinement_mask", type=bool, help="Generate more fine-grained mask for refinement", default=False)
-    parser.add_argument("-m", "--morph_radius", type=int, default=3,
-                        help="The radius for morphological operations (opening, closing)")
+    parser.add_argument("-m", "--morph_radius", type=int, default=3, help="The radius for morphological operations (opening, closing)")
     parser.add_argument(
         "-d",
         "--mask_diameter",
@@ -48,8 +47,7 @@ if __name__ == "__main__":
         choices=range(0, 101),
         help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable",
     )
-    parser.add_argument("-a", "--aggressive", type=bool,
-                        help="Use more aggressive mask cutoff when using GMM mask", default=False)
+    parser.add_argument("-a", "--aggressive", type=bool, help="Use more aggressive mask cutoff when using GMM mask", default=False)
 
     args, unknown = parser.parse_known_args()
 
@@ -187,6 +185,29 @@ if __name__ == "__main__":
 
     relion_job_exit_status_file = open(os.path.join(outargs_rpath, "RELION_JOB_EXIT_SUCCESS"), "w")
     relion_job_exit_status_file.close()
+
+    output_contour_level_file = glob(os.path.join(outargs_rpath, "*revised_contour.txt"))
+    if len(output_contour_level_file) != 1:
+        raise ValueError(f"# Logical Error: Output Contour Level file does not exist.")
+    output_contour_level_file = output_contour_level_file[0]
+
+    with open(output_contour_level_file, "r") as f:
+        lines = f.read().splitlines()
+        contour_conservative = float(lines[0].split()[1])
+        contour_aggressive = float(lines[1].split()[1])
+        masked_percentage = float(lines[2].split()[1])
+
+    print("Creating Contour Level star file ...")
+    relion_contour_level_star_file = open(os.path.join(outargs_rpath, "CONTOUR_LEVEL.star"), "w")
+    relion_contour_level_star_file.write("\n")
+    relion_contour_level_star_file.write("# version 30001\n")
+    relion_contour_level_star_file.write("data_general\n")
+    relion_contour_level_star_file.write("\n")
+    relion_contour_level_star_file.write(f"_rlnContourLevelConservative #1 {contour_conservative}\n")
+    relion_contour_level_star_file.write(f"_rlnContourLevelAggressive #2 {contour_aggressive}\n")
+    relion_contour_level_star_file.write(f"_rlnMaskedPercentage #3 {masked_percentage}\n")
+    relion_contour_level_star_file.write("\n")
+    relion_contour_level_star_file.close()
 
     print("[GTF_DEBUG] Done")
     """<<< Finishing up"""
