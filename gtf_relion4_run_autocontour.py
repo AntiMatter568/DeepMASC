@@ -14,6 +14,12 @@ import select
 import sys
 import pprint
 from pathlib import Path
+
+# Add the script's directory to the Python path to ensure modules in the same directory can be imported
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
 import starfile
 from glob import glob
 
