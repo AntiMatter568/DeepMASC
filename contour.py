@@ -37,12 +37,29 @@ def create_spherical_mask(array_shape, radius=95):
     return dist_from_center <= radius
 
 
-def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_level=0.0):
+def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_level=0.0, debug=False):
+    import select
+    import tempfile
+    import shutil
+
     output_folder = str(Path(output_folder).absolute())
     TEMP_CURR_DIR = os.getcwd()
     os.chdir(CRYOREAD_PATH)
 
+    # Create a temporary directory for processing if not in debug mode
+    temp_dir = None
+    curr_out_dir = output_folder
+    map_name = Path(mrc_path).stem.split(".")[0].strip()
+
     try:
+        if not debug:
+            # Use temporary directory for processing
+            temp_dir = tempfile.TemporaryDirectory()
+            curr_out_dir = os.path.join(temp_dir.name, map_name)
+            os.makedirs(curr_out_dir, exist_ok=True)
+            logger.info(f"Created temporary directory: {curr_out_dir}")
+
+        # Prepare the command for running CryoREAD
         cmd = [
             "python",
             "main.py",
@@ -53,14 +70,87 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
             f"--batch_size={batch_size}",
             f"--prediction_only",
             f"--resolution=2.0",
-            f"--output={output_folder}",
+            f"--output={curr_out_dir}",
         ]
 
-        print(" ".join(cmd))
-        process = subprocess.run(cmd, shell=False, text=True)
-    except:
-        print("Error running CryoREAD")
+        logger.info("Running CryoREAD command: " + " ".join(cmd))
+
+        # Use Popen with output capturing for real-time monitoring
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1,
+            universal_newlines=True,
+            env=dict(os.environ, PYTHONUNBUFFERED="1"),  # Force Python subprocess to be unbuffered
+        )
+
+        # Read and print output in real-time
+        outputs = [process.stdout, process.stderr]
+        stderr_output = []  # Collect stderr for error reporting
+        
+        while outputs:
+            readable, _, _ = select.select(outputs, [], [])
+            for output in readable:
+                line = output.readline()
+                if not line:
+                    outputs.remove(output)
+                    continue
+                if output == process.stdout:
+                    logger.info(line.strip())
+                else:
+                    logger.warning(line.strip())
+                    stderr_output.append(line.strip())
+
+        # Wait for process to complete
+        return_code = process.wait()
+
+        if return_code != 0:
+            error_msg = f"CryoREAD process exited with code {return_code}"
+            if stderr_output:
+                error_msg += f": {''.join(stderr_output[-5:])}"  # Include last few lines of stderr
+            logger.error(error_msg)
+            return False
+
+        # If using temp directory, copy necessary files to the final output directory
+        if not debug and temp_dir:
+            # Copy specific files or directories as needed
+            try:
+                logger.info(f"Copying files from {curr_out_dir} to {output_folder}")
+                # Copy files from 2nd_stage_detection directory
+                second_stage_dir = os.path.join(curr_out_dir, "2nd_stage_detection")
+                if os.path.exists(second_stage_dir):
+                    for file in os.listdir(second_stage_dir):
+                        src = os.path.join(second_stage_dir, file)
+                        dst = os.path.join(output_folder, file)
+                        shutil.copy(src, dst)
+
+                # Copy other important files
+                important_files = {
+                    "input_segment.mrc": "input_segment.mrc",
+                    "mask_protein.mrc": "mask_protein.mrc",
+                    "CCC_FSC05.txt": "CCC_FSC05.txt"
+                }
+                
+                for src_name, dst_name in important_files.items():
+                    src_path = os.path.join(curr_out_dir, src_name)
+                    if os.path.exists(src_path):
+                        shutil.copy(src_path, os.path.join(output_folder, dst_name))
+                        logger.info(f"Copied {src_name} to output folder")
+            except Exception as e:
+                logger.error(f"Error copying files: {str(e)}")
+                return False
+
+        logger.info("CryoREAD completed successfully")
+        return True  # Return success status
+
+    except Exception as e:
+        logger.error(f"Error running CryoREAD: {str(e)}")
+        return False
     finally:
+        # Clean up temporary directory if it was created
+        if temp_dir:
+            temp_dir.cleanup()
         os.chdir(TEMP_CURR_DIR)
 
 
@@ -251,17 +341,19 @@ def gmm_mask(
 
     logger.info(f"Revised contour (Aggressive): {revised_contour_agg:.3f}")
 
+    mask_percent = np.count_nonzero(masked_map_data > 1e-8) / np.count_nonzero(map_data > 1e-8)
+
     # save the new data
     # save_mrc(input_map_path, masked_map_data, os.path.join(output_folder, Path(input_map_path).stem + "_mask.mrc"))
-    if aggressive:
-        logger.info("Using more aggressive mask generation")
-        agg_mask = np.zeros_like(map_data)
-        agg_mask[np.nonzero(masked_map_data)] = new_preds != ind_noise_second
-        save_mrc(input_map_path, agg_mask, os.path.join(output_folder, Path(input_map_path).stem + "_mask.mrc"))
-        mask_percent = np.count_nonzero(masked_map_data > 1e-8) / np.count_nonzero(map_data > 1e-8)
-    else:
-        save_mrc(input_map_path, mask, os.path.join(output_folder, Path(input_map_path).stem + "_mask.mrc"))
-        mask_percent = np.count_nonzero(masked_map_data > 1e-8) / np.count_nonzero(map_data > 1e-8)
+    agg_mask = np.zeros_like(map_data)
+    agg_mask[np.nonzero(masked_map_data)] = new_preds != ind_noise_second
+
+    # Apply the same morphological operations to the aggressive mask
+    agg_mask = closing(agg_mask.astype(bool), ball(morph_radius))
+    agg_mask = opening(agg_mask.astype(bool), ball(morph_radius))
+
+    save_mrc(input_map_path, mask, os.path.join(output_folder, "prot_mask.mrc"))
+    save_mrc(input_map_path, agg_mask, os.path.join(output_folder, "prot_mask_aggressive.mrc"))
 
     # plot the histogram
     fig, ax = plt.subplots(figsize=(10, 2))
@@ -306,6 +398,7 @@ if __name__ == "__main__":
         help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable",
     )
     parser.add_argument("-a", "--aggressive", action="store_true", help="Use more aggressive mask cutoff when using GMM mask")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
     revised_contour, mask_percent = gmm_mask(
@@ -327,4 +420,5 @@ if __name__ == "__main__":
             batch_size=args.batch_size,
             gpu_id=args.gpu_id,
             contour_level=revised_contour,
+            debug=args.debug,
         )
