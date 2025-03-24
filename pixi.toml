@@ -1,13 +1,16 @@
 [project]
 name = "AutoClass3D"
-channels = ["conda-forge", "bioconda", "nvidia", "pytorch"]
+channels = [
+    "nvidia/label/cuda-11.8.0",
+    "conda-forge",
+    "bioconda",
+    "nvidia",
+    "pytorch",
+]
 platforms = ["linux-64"]
 authors = ["Han Zhu <zhu773@purdue.edu>"]
 readme = "README.md"
 repository = "https://github.itap.purdue.edu/kiharalab/AutoClass3D/"
-
-[system-requirements]
-cuda = "12"
 
 [tasks]
 cryoread = "PYTHONNOUSERSITE=1 python CryoREAD/main.py"
@@ -16,7 +19,9 @@ autocontour = "PYTHONNOUSERSITE=1 python contour.py"
 
 [dependencies]
 python = "3.11.*"
-pytorch-cuda = "*"
+cuda = { version = "*", channel = "nvidia/label/cuda-11.8.0" }
+pytorch = { version = "2.0.*", channel = "pytorch" }
+pytorch-cuda = { version = "11.8.*", channel = "pytorch" }
 scikit-learn = "*"
 scikit-image = "*"
 matplotlib = "*"
