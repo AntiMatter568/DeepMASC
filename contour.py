@@ -39,7 +39,7 @@ def create_spherical_mask(array_shape, radius=95):
     return dist_from_center <= radius
 
 
-def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_level=0.0, debug=False):
+def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_level=0.0, debug=False, temp=None):
     import tempfile
     import shutil
 
@@ -55,7 +55,10 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
     try:
         if not debug:
             # Use temporary directory for processing
-            temp_dir = tempfile.TemporaryDirectory()
+            if temp is None:
+                temp_dir = tempfile.TemporaryDirectory()
+            else:
+                temp_dir = tempfile.TemporaryDirectory(dir=temp)
             curr_out_dir = os.path.join(temp_dir.name, map_name)
             os.makedirs(curr_out_dir, exist_ok=True)
             logger.info(f"Created temporary directory: {curr_out_dir}")
@@ -381,6 +384,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-a", "--aggressive", action="store_true", help="Use more aggressive mask cutoff when using GMM mask")
     parser.add_argument("-c", "--cutoff_prob", type=float, default=0.3, help="The cutoff probability for the mask if using CryoREAD mask")
+    parser.add_argument("--temp", type=str, default="/tmp", help="The temporary folder for CryoREAD")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
@@ -406,6 +410,7 @@ if __name__ == "__main__":
             gpu_id=args.gpu_id,
             contour_level=revised_contour,
             debug=args.debug,
+            temp=args.temp,
         )
 
         # load the mask

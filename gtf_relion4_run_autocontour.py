@@ -125,6 +125,7 @@ if __name__ == "__main__":
         f"--num_components={args.num_components}",
         f"--morph_radius={args.morph_radius}",
         f"--mask_diameter={args.mask_diameter}",
+        f"--temp={args.temp}",
     ]
 
     if args.refinement_mask:
