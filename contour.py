@@ -58,6 +58,7 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
             if temp is None:
                 temp_dir = tempfile.TemporaryDirectory()
             else:
+                os.makedirs(temp, exist_ok=True)
                 temp_dir = tempfile.TemporaryDirectory(dir=temp)
             curr_out_dir = os.path.join(temp_dir.name, map_name)
             os.makedirs(curr_out_dir, exist_ok=True)
