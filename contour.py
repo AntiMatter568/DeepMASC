@@ -404,7 +404,7 @@ if __name__ == "__main__":
     )
 
     if args.refinement_mask:
-        run_cryoREAD(
+        if not run_cryoREAD(
             mrc_path=args.input_map_path,
             output_folder=args.output_folder,
             batch_size=args.batch_size,
@@ -412,7 +412,9 @@ if __name__ == "__main__":
             contour_level=revised_contour,
             debug=args.debug,
             temp=args.temp,
-        )
+        ):
+            logger.error("CryoREAD failed to run, please check the log file")
+            exit(1)
 
         # load the mask
         with mrcfile.open(os.path.join(args.output_folder, "chain_protein_prob.mrc"), permissive=True) as mrc:
