@@ -1,5 +1,4 @@
 from pathlib import Path
-import subprocess
 
 import mrcfile
 import numpy as np
@@ -16,6 +15,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 from loguru import logger
+from utils import run_subprocess
+import asyncio
 
 # change to relative path to this file
 CURR_SCIPT_PATH = Path(__file__).absolute().parent
@@ -38,7 +39,6 @@ def create_spherical_mask(array_shape, radius=95):
 
 
 def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_level=0.0, debug=False):
-    import select
     import tempfile
     import shutil
 
@@ -75,41 +75,9 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
 
         logger.info("Running CryoREAD command: " + " ".join(cmd))
 
-        # Use Popen with output capturing for real-time monitoring
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=1,
-            universal_newlines=True,
-            env=dict(os.environ, PYTHONUNBUFFERED="1"),  # Force Python subprocess to be unbuffered
-        )
-
-        # Read and print output in real-time
-        outputs = [process.stdout, process.stderr]
-        stderr_output = []  # Collect stderr for error reporting
-        
-        while outputs:
-            readable, _, _ = select.select(outputs, [], [])
-            for output in readable:
-                line = output.readline()
-                if not line:
-                    outputs.remove(output)
-                    continue
-                if output == process.stdout:
-                    logger.info(line.strip())
-                else:
-                    logger.warning(line.strip())
-                    stderr_output.append(line.strip())
-
-        # Wait for process to complete
-        return_code = process.wait()
-
-        if return_code != 0:
-            error_msg = f"CryoREAD process exited with code {return_code}"
-            if stderr_output:
-                error_msg += f": {''.join(stderr_output[-5:])}"  # Include last few lines of stderr
-            logger.error(error_msg)
+        exit_code = asyncio.run(run_subprocess(cmd))
+        if exit_code != 0:
+            logger.error(f"CryoREAD process exited with code {exit_code}")
             return False
 
         # If using temp directory, copy necessary files to the final output directory
@@ -117,21 +85,17 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
             # Copy specific files or directories as needed
             try:
                 logger.info(f"Copying files from {curr_out_dir} to {output_folder}")
-                # Copy files from 2nd_stage_detection directory
-                second_stage_dir = os.path.join(curr_out_dir, "2nd_stage_detection")
-                if os.path.exists(second_stage_dir):
-                    for file in os.listdir(second_stage_dir):
-                        src = os.path.join(second_stage_dir, file)
-                        dst = os.path.join(output_folder, file)
-                        shutil.copy(src, dst)
-
-                # Copy other important files
+                # Copy important files
                 important_files = {
                     "input_segment.mrc": "input_segment.mrc",
                     "mask_protein.mrc": "mask_protein.mrc",
-                    "CCC_FSC05.txt": "CCC_FSC05.txt"
+                    "CCC_FSC05.txt": "CCC_FSC05.txt",
+                    "2nd_stage_detection/chain_base_prob.mrc": "chain_base_prob.mrc",
+                    "2nd_stage_detection/chain_phosphate_prob.mrc": "chain_phosphate_prob.mrc",
+                    "2nd_stage_detection/chain_sugar_prob.mrc": "chain_sugar_prob.mrc",
+                    "2nd_stage_detection/chain_protein_prob.mrc": "chain_protein_prob.mrc",
                 }
-                
+
                 for src_name, dst_name in important_files.items():
                     src_path = os.path.join(curr_out_dir, src_name)
                     if os.path.exists(src_path):
@@ -304,7 +268,7 @@ def gmm_mask(
     # choose ind that is closest to 0, and ind that has the highest mean
     ind_noise = np.argmin(np.abs(g.means_[:, 0].flatten()))
 
-    logger.info(f"Means: {g.means_.shape}, {g.means_[:, 0]}, {g.means_[:, 1]}")
+    logger.debug(f"Means: {g.means_.shape}, {g.means_[:, 0]}, {g.means_[:, 1]}")
 
     # generate a mask to keep only the component without the noise
     mask = np.zeros_like(map_data)
@@ -356,14 +320,31 @@ def gmm_mask(
     save_mrc(input_map_path, agg_mask, os.path.join(output_folder, "prot_mask_aggressive.mrc"))
 
     # plot the histogram
-    fig, ax = plt.subplots(figsize=(10, 2))
-    ax.hist(non_zero_data.flatten(), alpha=0.5, bins=256, density=False, log=True, label="Original")
-    ax.hist(new_data_non_zero.flatten(), alpha=0.5, bins=256, density=False, log=True, label="Masked")
-    ax.axvline(revised_contour, label="Revised Contour (Conservative)", linestyle="dashed")
-    ax.axvline(revised_contour_agg, label="Revised Contour (Aggressive)", linestyle="dashed")
-    ax.legend()
-    plt.title(input_map_path)
-    plt.savefig(os.path.join(output_folder, Path(input_map_path).stem + "_hist_overall.png"))
+    plt.style.use("seaborn-v0_8-whitegrid")  # Use modern seaborn style
+    fig, ax = plt.subplots(figsize=(12, 5))  # Larger figure size
+
+    # Plot histograms with better colors
+    ax.hist(non_zero_data.flatten(), bins=256, density=False, log=True, color="#3498db", alpha=0.7, label="Original")
+    ax.hist(new_data_non_zero.flatten(), bins=256, density=False, log=True, color="#e74c3c", alpha=0.7, label="Masked")
+
+    # Add contour lines with better visibility
+    ax.axvline(revised_contour, label="Revised Contour (Conservative)", linestyle="dashed", color="#2c3e50", linewidth=2)
+    ax.axvline(revised_contour_agg, label="Revised Contour (Aggressive)", linestyle="dotted", color="#27ae60", linewidth=2)
+
+    # Improve labels and formatting
+    ax.set_xlabel("Density Value", fontsize=12)
+    ax.set_ylabel("Frequency (log scale)", fontsize=12)
+    ax.set_title(f"Density Distribution: {Path(input_map_path).stem}", fontsize=14, fontweight="bold")
+    ax.grid(True, linestyle="--", alpha=0.7)
+    ax.tick_params(axis="both", labelsize=10)
+
+    # Improve legend
+    ax.legend(loc="upper right", frameon=True, fancybox=True, shadow=True, fontsize=10)
+
+    # Tight layout and save with higher DPI
+    fig.tight_layout()
+    plt.savefig(os.path.join(output_folder, Path(input_map_path).stem + "_hist_overall.png"), dpi=300)
+    plt.close(fig)  # Close the figure to free memory
     out_txt = os.path.join(output_folder, Path(input_map_path).stem + "_revised_contour.txt")
 
     with open(out_txt, "w") as f:

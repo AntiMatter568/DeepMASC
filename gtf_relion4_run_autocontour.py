@@ -3,7 +3,6 @@
 # Author: Han Zhu
 
 from __future__ import print_function
-import subprocess
 
 """Import >>>"""
 import argparse
@@ -14,14 +13,9 @@ import select
 import sys
 import pprint
 from pathlib import Path
-
-# Add the script's directory to the Python path to ensure modules in the same directory can be imported
-script_dir = os.path.dirname(os.path.abspath(__file__))
-if script_dir not in sys.path:
-    sys.path.insert(0, script_dir)
-
-import starfile
 from glob import glob
+from utils import run_subprocess
+import asyncio
 
 if __name__ == "__main__":
 
@@ -30,7 +24,7 @@ if __name__ == "__main__":
     """<<< Import"""
 
     """USAGE >>>"""
-    print("This script runs Class3D Selection from RELION Model STAR file in AWS GoToCloud Enviroment")
+    print("This script runs Auto Contour Level Determination from MRC file")
     """<<< USAGE"""
 
     """VARIABLES >>>"""
@@ -54,11 +48,14 @@ if __name__ == "__main__":
         help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable",
     )
     parser.add_argument("-a", "--aggressive", type=bool, help="Use more aggressive mask cutoff when using GMM mask", default=False)
+    parser.add_argument("--debug", type=bool, help="Debug mode", default=False)
 
     args, unknown = parser.parse_known_args()
 
     inargs_parts = args.input
     outargs_rpath = args.output
+    inargs_parts = os.path.abspath(inargs_parts)
+    outargs_rpath = os.path.abspath(outargs_rpath)
     gpu_ids = args.gpus
     # batch size to use for CryoREAD prediction
     batch_size = args.batch
@@ -100,7 +97,7 @@ if __name__ == "__main__":
     # sys.path.append(script_repo_fpath)
     # pprint.pprint(sys.path)
 
-    assert os.path.exists(inargs_parts), "# Logical Error: Input MRC file must exits."
+    assert os.path.exists(inargs_parts), f"# Logical Error: Input MRC file ({inargs_parts}) must exits."
     input_job_dir_rpath, input_data_mrc_file_basename = os.path.split(inargs_parts)
     print("[GTF_DEBUG] input_job_dir_rpath            : %s" % input_job_dir_rpath)
     print("[GTF_DEBUG] input_data_mrc_file_basename  : %s" % input_data_mrc_file_basename)
@@ -137,38 +134,22 @@ if __name__ == "__main__":
 
     print("[GTF_DEBUG] AutoContour Command : ", " ".join(cmd))
 
-    process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        bufsize=1,
-        universal_newlines=True,
-        env=dict(os.environ, PYTHONUNBUFFERED="1"),  # Force Python subprocess to be unbuffered
-    )
-    # Read and print output
-    outputs = [process.stdout, process.stderr]
-    while outputs:
-        readable, _, _ = select.select(outputs, [], [])
-        for output in readable:
-            line = output.readline()
-            if not line:
-                outputs.remove(output)
-                continue
-            if output == process.stdout:
-                print(line.strip())
-            else:
-                print(line.strip())
+    exit_code = asyncio.run(run_subprocess(cmd))
+    if exit_code != 0:
+        raise ValueError(f"# Logical Error: AutoContour failed with exit code {exit_code}")
 
-    # Wait for process to complete
-    process.wait()
     os.chdir(TEMP_CURR_DIR)
     """<<< AutoContour"""
 
     """Finishing up >>>"""
     # See the data_pipeline_nodes table in the default_pipeline.star file of any relion project directory for examples.
 
-    output_mask_mrc_file = os.path.join(outargs_rpath, "mask_protein.mrc")
+    output_mask_mrc_file = os.path.join(outargs_rpath, "prot_mask.mrc")
+    output_mask_mrc_aggressive_file = os.path.join(outargs_rpath, "prot_mask_aggressive.mrc")
     assert os.path.exists(output_mask_mrc_file), f"# Logical Error: Output Mask MRC file ({output_mask_mrc_file}) must exist."
+    assert os.path.exists(
+        output_mask_mrc_aggressive_file
+    ), f"# Logical Error: Output Mask MRC file ({output_mask_mrc_aggressive_file}) must exist."
 
     print("Creating RELION_OUTPUT_NODES star file ...")
     # relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"),"w+")
@@ -199,9 +180,10 @@ if __name__ == "__main__":
 
     with open(output_contour_level_file, "r") as f:
         lines = f.read().splitlines()
-        contour_conservative = float(lines[0].split()[1])
-        contour_aggressive = float(lines[1].split()[1])
-        masked_percentage = float(lines[2].split()[1])
+        print("[GTF_DEBUG] Contour Level File: ", lines)
+        contour_conservative = float(lines[0].split()[-1])
+        contour_aggressive = float(lines[1].split()[-1])
+        masked_percentage = float(lines[2].split()[-1])
 
     print("Creating Contour Level star file ...")
     relion_contour_level_star_file = open(os.path.join(outargs_rpath, "CONTOUR_LEVEL.star"), "w")

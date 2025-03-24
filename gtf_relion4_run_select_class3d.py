@@ -59,8 +59,6 @@
 
 from __future__ import print_function
 
-import subprocess
-
 """Import >>>"""
 import argparse
 import os
@@ -70,6 +68,8 @@ import select
 import sys
 import pprint
 from pathlib import Path
+from utils import run_subprocess
+import asyncio
 
 """<<< Import"""
 
@@ -78,17 +78,16 @@ print("This script runs Class3D Selection from RELION Model STAR file in AWS GoT
 """<<< USAGE"""
 
 """VARIABLES >>>"""
-print('running ...')
+print("running ...")
 parser = argparse.ArgumentParser()
 # --in_YYY: YYY is the type of the input node: movies, mics, parts, coords, 3dref, or mask,
-parser.add_argument("-i", "--input", "--in_parts", type=str,
-                    help="RELION requirement! Input particle star file Path (relative)")
+parser.add_argument("-i", "--input", "--in_parts", type=str, help="RELION requirement! Input particle star file Path (relative)")
 parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
 parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD prediction")
 parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
 parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
-parser.add_argument("-r","--reso", type=str, help="Resolution to choose the deep learning model", default="Low")
-parser.add_argument("-b","--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
+parser.add_argument("-r", "--reso", type=str, help="Resolution to choose the deep learning model", default="Low")
+parser.add_argument("-b", "--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
 
 ### parser.add_argument("-m", "--model_star",           type=str,                                             help = "Input model star file Path (relative).")
 ### parser.add_argument("-r", "--script_repo",         type=str,                                              help = "Script repository directory path (full).")
@@ -105,9 +104,9 @@ batch_size = args.batch
 ### script_repo_fpath = str(args.script_repo)
 invalid_str = "GTF_INVALID_STR"
 
-print('[GTF_DEBUG] inargs_parts      : %s' % inargs_parts)
-print('[GTF_DEBUG] outargs_rpath     : %s' % outargs_rpath)
-print('[GTF_DEBUG] gpu_ids          : %s' % gpu_ids)
+print("[GTF_DEBUG] inargs_parts      : %s" % inargs_parts)
+print("[GTF_DEBUG] outargs_rpath     : %s" % outargs_rpath)
+print("[GTF_DEBUG] gpu_ids          : %s" % gpu_ids)
 ## print('[GTF_DEBUG] model_star_rpath  : %s' % model_star_rpath)
 ### print('[GTF_DEBUG] script_repo_fpath : %s' % script_repo_fpath)
 
@@ -117,27 +116,27 @@ print('[GTF_DEBUG] gpu_ids          : %s' % gpu_ids)
 
 # For Class3D Model Classes (class3d) parameters file format as defined in gtf_relion4_select3d
 i_enum = -1
-i_enum += 1;
+i_enum += 1
 idx_class3d_map_dir_rpath = i_enum
-i_enum += 1;
+i_enum += 1
 idx_class3d_distribution = i_enum
-i_enum += 1;
+i_enum += 1
 idx_class3d_accuracy_rot = i_enum
-i_enum += 1;
+i_enum += 1
 idx_class3d_accuracy_shift = i_enum
-i_enum += 1;
+i_enum += 1
 idx_class3d_estimated_res = i_enum
-i_enum += 1;
+i_enum += 1
 idx_class3d_completeness = i_enum
-i_enum += 1;
+i_enum += 1
 idx_class3d_gtc_class3d_id = i_enum
-i_enum += 1;
+i_enum += 1
 n_idx_class3d = i_enum
 
 output_selected_data_star_file_basename = "selected_data.star"
 output_selected_map_mrc_file_basename = "selected_model_map.mrc"
-print('[GTF_DEBUG] output_selected_data_star_file_basename : %s' % output_selected_data_star_file_basename)
-print('[GTF_DEBUG] output_selected_map_mrc_file_basename   : %s' % output_selected_map_mrc_file_basename)
+print("[GTF_DEBUG] output_selected_data_star_file_basename : %s" % output_selected_data_star_file_basename)
+print("[GTF_DEBUG] output_selected_map_mrc_file_basename   : %s" % output_selected_map_mrc_file_basename)
 
 """<<< VARIABLES"""
 
@@ -146,44 +145,53 @@ print('[GTF_DEBUG] output_selected_map_mrc_file_basename   : %s' % output_select
 # sys.path.append(script_repo_fpath)
 # pprint.pprint(sys.path)
 
-assert os.path.exists(inargs_parts), '# Logical Error: Input RELION DATA STAR file must exits.'
+assert os.path.exists(inargs_parts), "# Logical Error: Input RELION DATA STAR file must exits."
 input_job_dir_rpath, input_data_star_file_basename = os.path.split(inargs_parts)
-print('[GTF_DEBUG] input_job_dir_rpath            : %s' % input_job_dir_rpath)
-print('[GTF_DEBUG] input_data_star_file_basename  : %s' % input_data_star_file_basename)
+print("[GTF_DEBUG] input_job_dir_rpath            : %s" % input_job_dir_rpath)
+print("[GTF_DEBUG] input_data_star_file_basename  : %s" % input_data_star_file_basename)
 """<<< Preparation"""
 
 """Selecting the best class >>>"""
 # input_data_star_file_basename format : run_it###_data.star
 # input_model_star_file_basename format : run_it###_model.star
-input_model_star_file_basename = input_data_star_file_basename.replace('data', 'model')
+input_model_star_file_basename = input_data_star_file_basename.replace("data", "model")
 input_model_star_rpath = os.path.join(input_job_dir_rpath, input_model_star_file_basename)
-print('[GTF_DEBUG] input_model_star_file_basename  : %s' % input_model_star_file_basename)
-print('[GTF_DEBUG] input_model_star_rpath          : %s' % input_model_star_rpath)
-assert os.path.exists(input_model_star_rpath), '# Logical Error: Input RELION DATA STAR file must exits.'
+print("[GTF_DEBUG] input_model_star_file_basename  : %s" % input_model_star_file_basename)
+print("[GTF_DEBUG] input_model_star_rpath          : %s" % input_model_star_rpath)
+assert os.path.exists(input_model_star_rpath), "# Logical Error: Input RELION DATA STAR file must exits."
 
 import gtf_relion4_select3d
 
 # check if the job is InitialModel or Class3D
 if "InitialModel" in input_job_dir_rpath:
-    print('[GTF_DEBUG] Running InitialModel Model Selection')
+    print("[GTF_DEBUG] Running InitialModel Model Selection")
     sort_table = gtf_relion4_select3d.run_initialmodel(input_model_star_rpath, outargs_rpath, relion_project_dir_fpath=None)
 elif "Class3D" in input_job_dir_rpath:
-    print('[GTF_DEBUG] Running Class3D Model Selection')
+    print("[GTF_DEBUG] Running Class3D Model Selection")
     sort_table = gtf_relion4_select3d.run_class3d(input_model_star_rpath, outargs_rpath, relion_project_dir_fpath=None)
 else:
-    print('[GTF_ERROR] Unknown job type : ', input_job_dir_rpath)
+    print("[GTF_ERROR] Unknown job type : ", input_job_dir_rpath)
     exit(1)
 
-print('[GTF_DEBUG] sort_table : ', sort_table)
+print("[GTF_DEBUG] sort_table : ", sort_table)
 
 i_sort_table = 0
-print('[GTF_DEBUG] Class3D Sort Table Index: Class3D ID, Map File, Resolution, Distribution')
+print("[GTF_DEBUG] Class3D Sort Table Index: Class3D ID, Map File, Resolution, Distribution")
 for sort_entry_list in sort_table:
-    print('[GTF_DEBUG]   ', i_sort_table, ' : ', sort_entry_list[idx_class3d_gtc_class3d_id], ', ',
-          sort_entry_list[idx_class3d_map_dir_rpath], ', ', sort_entry_list[idx_class3d_estimated_res],
-          ', ', sort_entry_list[idx_class3d_distribution])
+    print(
+        "[GTF_DEBUG]   ",
+        i_sort_table,
+        " : ",
+        sort_entry_list[idx_class3d_gtc_class3d_id],
+        ", ",
+        sort_entry_list[idx_class3d_map_dir_rpath],
+        ", ",
+        sort_entry_list[idx_class3d_estimated_res],
+        ", ",
+        sort_entry_list[idx_class3d_distribution],
+    )
     i_sort_table += 1
-print('')
+print("")
 
 # CryoREAD
 CURR_SCRIPT_PATH = Path(__file__).absolute().parent
@@ -199,15 +207,14 @@ os.makedirs(args.temp, exist_ok=True)
 temp_dir = tempfile.TemporaryDirectory(dir=args.temp)
 try:
     temp_dir_name = temp_dir.name
-    print('[GTF_DEBUG] Created temporary directory', temp_dir_name)
+    print("[GTF_DEBUG] Created temporary directory", temp_dir_name)
 
     for sort_entry_list in sort_table:
-        mrc_file = os.path.join(input_job_dir_rpath_abs,
-                                sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
-        print('[GTF_DEBUG] Running CryoREAD on mrc_file : ', mrc_file)
+        mrc_file = os.path.join(input_job_dir_rpath_abs, sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
+        print("[GTF_DEBUG] Running CryoREAD on mrc_file : ", mrc_file)
         map_name = Path(mrc_file).stem.split(".")[0].strip()
         curr_out_dir = os.path.join(temp_dir.name, map_name)
-        print('[GTF_DEBUG] curr_out_dir : ', curr_out_dir)
+        print("[GTF_DEBUG] curr_out_dir : ", curr_out_dir)
         os.makedirs(curr_out_dir, exist_ok=True)
         class_id = int(sort_entry_list[idx_class3d_gtc_class3d_id])
         seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
@@ -225,35 +232,11 @@ try:
             f"--resolution={reso_input}",
             f"--output={curr_out_dir}",
         ]
-        print('[GTF_DEBUG] CryoREAD Command : ', " ".join(cmd))
-        # process = subprocess.run(cmd, shell=False, text=True)
+        print("[GTF_DEBUG] CryoREAD Command : ", " ".join(cmd))
 
-        # Use asyncio to handle subprocess output
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=1,
-            universal_newlines=True,
-            env=dict(os.environ, PYTHONUNBUFFERED="1")  # Force Python subprocess to be unbuffered
-        )
-
-        # Read and print output
-        outputs = [process.stdout, process.stderr]
-        while outputs:
-            readable, _, _ = select.select(outputs, [], [])
-            for output in readable:
-                line = output.readline()
-                if not line:
-                    outputs.remove(output)
-                    continue
-                if output == process.stdout:
-                    print(line.strip())
-                else:
-                    print(line.strip())
-
-        # Wait for process to complete
-        process.wait()
+        exit_code = asyncio.run(run_subprocess(cmd))
+        if exit_code != 0:
+            raise ValueError(f"# Logical Error: CryoREAD failed with exit code {exit_code}")
 
         output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
         metrics = []
@@ -268,34 +251,30 @@ try:
             shutil.copytree(curr_out_dir, os.path.join(FINAL_OUTDIR, map_name))
         else:
             # copyfiles to final output dir
-            shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
-                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_base_prob.mrc"))
-            shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
-                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"))
-            shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
-                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_sugar_prob.mrc"))
-            shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
-                        os.path.join(FINAL_OUTDIR, f"{map_name}_chain_protein_prob.mrc"))
+            shutil.copy(
+                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
+                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_base_prob.mrc"),
+            )
+            shutil.copy(
+                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
+                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"),
+            )
+            shutil.copy(
+                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
+                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_sugar_prob.mrc"),
+            )
+            shutil.copy(
+                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
+                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_protein_prob.mrc"),
+            )
             shutil.copy(seg_map_path, os.path.join(FINAL_OUTDIR, f"{map_name}_segment.mrc"))
             shutil.copy(prot_prob_path, os.path.join(FINAL_OUTDIR, f"{map_name}_mask_protein.mrc"))
             shutil.copy(output_file, os.path.join(FINAL_OUTDIR, f"{map_name}_CCC_FSC05.txt"))
 
-        # try:
-        #     real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-        # except:
-        #     print('[GTF_DEBUG] CCC calculation failed on : ', mrc_file)
-        #     real_space_cc = 0.0
-        #
-        # try:
-        #     x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
-        # except:
-        #     print('[GTF_DEBUG] FSC calculation failed on : ', mrc_file)
-        #     cutoff_05 = 0.0
-
         result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
         result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
 except:
-    print('[GTF_DEBUG] Error running CryoREAD')
+    print("[GTF_DEBUG] Error running CryoREAD")
 
 temp_dir.cleanup()  # delete temp dir
 os.chdir(TEMP_CURR_DIR)
@@ -305,43 +284,51 @@ first_class3d_sort_entry_list = result_list_cryoREAD[0]
 # print('[GTF_DEBUG] first_class3d_sort_entry_list : ', first_class3d_sort_entry_list)
 
 # Print results as table
-print('[GTF_DEBUG] CryoREAD Sort Table Index: Class ID, MRC File, Real Space CC, FSC @ 0.5')
+print("[GTF_DEBUG] CryoREAD Sort Table Index: Class ID, MRC File, Real Space CC, FSC @ 0.5")
 i_cryoread_sort_table = 0
 for entry in result_list_cryoREAD:
-    print('[GTF_DEBUG]   ', i_cryoread_sort_table, ' : ',
-          entry[0], ', ',  # Class ID
-          entry[1], ', ',  # MRC File
-          entry[2], ', ',  # Real Space CC
-          entry[3])  # FSC @ 0.5
+    print(
+        "[GTF_DEBUG]   ",
+        i_cryoread_sort_table,
+        " : ",
+        entry[0],
+        ", ",  # Class ID
+        entry[1],
+        ", ",  # MRC File
+        entry[2],
+        ", ",  # Real Space CC
+        entry[3],
+    )  # FSC @ 0.5
     i_cryoread_sort_table += 1
-print('')
+print("")
 
 selected_class_id = int(first_class3d_sort_entry_list[0])
-print('[GTF_DEBUG] Selected Class ID :', selected_class_id)
-print('[GTF_DEBUG] Selected MRC File :', first_class3d_sort_entry_list[1])
+print("[GTF_DEBUG] Selected Class ID :", selected_class_id)
+print("[GTF_DEBUG] Selected MRC File :", first_class3d_sort_entry_list[1])
 
 """<<< Selecting the best class"""
 
 """Copying selected map >>>"""
 input_selected_map_file_rpath = first_class3d_sort_entry_list[1]
 output_selected_map_file_rpath = os.path.join(outargs_rpath, output_selected_map_mrc_file_basename)
-print('[GTF_DEBUG] input_selected_map_file_rpath   : %s' % input_selected_map_file_rpath)
-print('[GTF_DEBUG] output_selected_map_file_rpath  : %s' % output_selected_map_file_rpath)
-assert os.path.exists(input_selected_map_file_rpath), '# Logical Error: Input RELION MAP MRC file must exits.'
+print("[GTF_DEBUG] input_selected_map_file_rpath   : %s" % input_selected_map_file_rpath)
+print("[GTF_DEBUG] output_selected_map_file_rpath  : %s" % output_selected_map_file_rpath)
+assert os.path.exists(input_selected_map_file_rpath), "# Logical Error: Input RELION MAP MRC file must exits."
 shutil.copy2(input_selected_map_file_rpath, output_selected_map_file_rpath)
 """<<< Copying selected map"""
 
 """Creating selected data star >>>"""
 import gtf_relion4_create_select3d_data_star
 
-gtf_relion4_create_select3d_data_star.run(inargs_parts, outargs_rpath, selected_class_id,
-                                          output_selected_data_star_file_basename, relion_project_dir_fpath=None)
+gtf_relion4_create_select3d_data_star.run(
+    inargs_parts, outargs_rpath, selected_class_id, output_selected_data_star_file_basename, relion_project_dir_fpath=None
+)
 """<<< Creating slected data star"""
 
 """Finishing up >>>"""
 # See the data_pipeline_nodes table in the default_pipeline.star file of any relion project directory for examples.
 
-print('Creating RELION_OUTPUT_NODES star file ...')
+print("Creating RELION_OUTPUT_NODES star file ...")
 # relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"),"w+")
 relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"), "w")
 relion_output_nodes_star_file.write("\n")
@@ -353,9 +340,9 @@ relion_output_nodes_star_file.write("_rlnPipeLineNodeName #1 \n")
 # relion_output_nodes_star_file.write("_rlnPipeLineNodeType #2\n")
 relion_output_nodes_star_file.write("_rlnPipeLineNodeTypeLabel #2 \n")
 relion_output_nodes_star_file.write(
-    "{} ParticlesData.star.relion \n".format(os.path.join(outargs_rpath, output_selected_data_star_file_basename)))
-relion_output_nodes_star_file.write(
-    "{} DensityMap.mrc \n".format(os.path.join(outargs_rpath, output_selected_map_mrc_file_basename)))
+    "{} ParticlesData.star.relion \n".format(os.path.join(outargs_rpath, output_selected_data_star_file_basename))
+)
+relion_output_nodes_star_file.write("{} DensityMap.mrc \n".format(os.path.join(outargs_rpath, output_selected_map_mrc_file_basename)))
 # relion_output_nodes_star_file.write(logfile+" 13")
 relion_output_nodes_star_file.write("\n")
 relion_output_nodes_star_file.close()
@@ -363,5 +350,5 @@ relion_output_nodes_star_file.close()
 relion_job_exit_status_file = open(os.path.join(outargs_rpath, "RELION_JOB_EXIT_SUCCESS"), "w")
 relion_job_exit_status_file.close()
 
-print('[GTF_DEBUG] Done')
+print("[GTF_DEBUG] Done")
 """<<< Finishing up"""
