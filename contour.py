@@ -17,6 +17,7 @@ matplotlib.use("Agg")
 from loguru import logger
 from utils import run_subprocess
 import asyncio
+import shutil
 
 # change to relative path to this file
 CURR_SCIPT_PATH = Path(__file__).absolute().parent
@@ -379,8 +380,11 @@ if __name__ == "__main__":
         help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable",
     )
     parser.add_argument("-a", "--aggressive", action="store_true", help="Use more aggressive mask cutoff when using GMM mask")
+    parser.add_argument("-c", "--cutoff_prob", type=float, default=0.3, help="The cutoff probability for the mask if using CryoREAD mask")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
+
+    final_out_mask_path = os.path.join(args.output_folder, "prot_mask_final.mrc")
 
     revised_contour, mask_percent = gmm_mask(
         input_map_path=args.input_map_path,
@@ -403,3 +407,22 @@ if __name__ == "__main__":
             contour_level=revised_contour,
             debug=args.debug,
         )
+
+        # load the mask
+        with mrcfile.open(os.path.join(args.output_folder, "chain_protein_prob.mrc"), permissive=True) as mrc:
+            protein_prob = mrc.data.copy()
+            # binarize the protein probability map
+            protein_prob = protein_prob > args.cutoff_prob
+
+        # make morphological operations on the mask
+        mask = closing(protein_prob.astype(bool), ball(args.morph_radius))
+        mask = opening(mask.astype(bool), ball(args.morph_radius))
+
+        # save the mask
+        save_mrc(args.input_map_path, mask, final_out_mask_path)
+
+    else:
+        if args.aggressive:
+            shutil.copy(os.path.join(args.output_folder, "prot_mask_aggressive.mrc"), final_out_mask_path)
+        else:
+            shutil.copy(os.path.join(args.output_folder, "prot_mask.mrc"), final_out_mask_path)

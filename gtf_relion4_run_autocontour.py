@@ -144,12 +144,8 @@ if __name__ == "__main__":
     """Finishing up >>>"""
     # See the data_pipeline_nodes table in the default_pipeline.star file of any relion project directory for examples.
 
-    output_mask_mrc_file = os.path.join(outargs_rpath, "prot_mask.mrc")
-    output_mask_mrc_aggressive_file = os.path.join(outargs_rpath, "prot_mask_aggressive.mrc")
+    output_mask_mrc_file = os.path.join(outargs_rpath, "prot_mask_final.mrc")
     assert os.path.exists(output_mask_mrc_file), f"# Logical Error: Output Mask MRC file ({output_mask_mrc_file}) must exist."
-    assert os.path.exists(
-        output_mask_mrc_aggressive_file
-    ), f"# Logical Error: Output Mask MRC file ({output_mask_mrc_aggressive_file}) must exist."
 
     print("Creating RELION_OUTPUT_NODES star file ...")
     # relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"),"w+")
