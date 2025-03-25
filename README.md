@@ -182,6 +182,8 @@ pixi run autocontour -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p -
 
 ## List of Output Files:
 
+<details>
+
 | File                                | Description                                                                                                                              |
 |-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
 | prot_mask_final.mrc                 | The final binary mask output. This will be either the GMM-based mask or CryoREAD-refined mask depending on your settings                 |
@@ -202,7 +204,11 @@ When using --refinement_mask, additional files are generated:
 | chain_sugar_prob.mrc     | Sugar probability map from CryoREAD                                                          |
 | CCC_FSC05.txt            | Cross-Correlation between input map and masked volume and FSC 0.5 cutoff value from CryoREAD |
 
+</details>
+
 ## AutoContour Usage with RELION GUI Integration:
+
+<details>
 
 ### There are three files associated with RELION integration of AutoContour:
 
@@ -235,3 +241,5 @@ When using --refinement_mask, additional files are generated:
 5. Click the "Run" button to start the job.
 
 6. Once finished, the results will be stored in the output job directory created by RELION, containing all the output files listed in the previous section.
+
+</details>
