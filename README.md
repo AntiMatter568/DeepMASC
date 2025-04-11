@@ -9,7 +9,7 @@ A deep learning based tool to automatically select the best reconstructed 3D map
 Clone the repository:
 
 ```bash
-git clone github.itap.purdue.edu/kiharalab/AutoClass3D
+git clone https://github.com/AntiMatter568/DeepMASC
 ```
 
 Create pixi environment (recommended):
