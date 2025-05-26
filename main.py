@@ -70,7 +70,7 @@ if __name__ == "__main__":
                     "--mode=0",
                     f"-F={mrc_file}",
                     "--contour=0",
-                    f"--gpu={args.G}",
+                    f"--gpu={args.gpus}",
                     f"--batch_size={args.batch}",
                     f"--prediction_only",
                     f"--resolution={reso_input}",
