@@ -173,3 +173,7 @@ CryoREAD/test_cryoread_22647/
 CryoREAD/test_cryoread_26363/
 CryoREAD/job019_run_it050_class001/
 CryoREAD/job052_run_it100_class003/
+
+# pixi lock files
+.pixi/
+pixi.lock
