@@ -16,6 +16,7 @@ repository = "https://github.itap.purdue.edu/kiharalab/AutoClass3D/"
 cryoread = "PYTHONNOUSERSITE=1 python CryoREAD/main.py"
 test_cuda = "PYTHONNOUSERSITE=1 python -c \"import torch; print(torch.cuda.is_available())\""
 autocontour = "PYTHONNOUSERSITE=1 python contour.py"
+autoselectclass = "PYTHONNOUSERSITE=1 python main.py"
 
 [dependencies]
 python = "3.11.*"
