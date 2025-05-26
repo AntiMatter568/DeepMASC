@@ -2,28 +2,38 @@
 
 A deep learning based tool to automatically select the best reconstructed 3D maps within a group of maps.
 
-## Installation
+# Installation
 
 <details>
 
-Clone the repository:
+### Clone the repository:
 
 ```bash
 git clone https://github.com/AntiMatter568/DeepMASC
 ```
 
-Create pixi environment (recommended):
-
-Install pixi:
+### Install pixi:
 
 ```bash
 curl -fsSL https://pixi.sh/install.sh | bash
 ```
 
-Install environment:
+### Or if system-wide installation is wanted (replace /path/to/shared/folder with the path to your desired installation folder):
+```bash
+curl -fsSL https://pixi.sh/install.sh | PIXI_HOME=/path/to/shared/folder bash
+```
+
+### Create pixi environment:
 
 ```bash
+cd AutoClass3D
 pixi install
+```
+
+Configure environment for shared usage:
+
+```bash
+chmod -R 755 . # set permission to read and exec for other users
 ```
 
 </details>
@@ -32,10 +42,15 @@ pixi install
 
 ## AutoSelect3D Standalone Usage without RELION:
 
+### If you are in the repo directory
 ```bash
-pixi run cryoread
+pixi run autoselectclass
 ```
 
+### If you want to run from abitrary directory (replace /path/to/DeepMASC/repo/pixi.toml with the path to your pixi.toml file)
+```bash
+pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autoselectclass
+```
 <details>
 
 ### Arguments for Class3D/InitialModel Selection
@@ -43,14 +58,14 @@ pixi run cryoread
 ### Arguments
 
 Required Arguments:
-* `-f, --files`: List of input mrc files. Accepts multiple files separated by spaces. These are the MRC files that will be processed and selected.
+* `-f, --files`: List of input mrc files. Accepts multiple files separated by spaces. These are the MRC files that will be processed and selected. (If used from a different directory other than DeepMASC repo, the paths must be absolute)
 
-* `-o, --output`: Output folder name. Directory where all output files will be stored.
+* `-o, --output`: Output folder name. Directory where all output files will be stored. (If used from a different directory other than DeepMASC repo, the paths must be absolute)
 
 * `-g, --gpus`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing. Multiple GPU IDs can be provided using a comma-separated list.
 
 Optional Arguments:
-* `--temp`: Temporary directory path for intermediate files (default: "/tmp")
+* `--temp`: Temporary directory path for intermediate files (default: "/tmp"). (If used from a different directory other than DeepMASC repo, the paths must be absolute)
 
 * `--debug`: Enable debug mode to generate full output (default: False). When enabled, copy the full cryoREAD output to the output directory for debugging.
 
@@ -64,7 +79,7 @@ Optional Arguments:
 ### Example for Class3D/InitialModel Selection
 
 ```bash
-pixi run cryoread -f Class3D/job052/class1.mrc Class3D/job052/class2.mrc Class3D/job052/class3.mrc -g 0,1,2 -o job052_select --temp ./temp
+pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autoselectclass -f /path/to/relion/project/Class3D/job052/class1.mrc /path/to/relion/project/Class3D/job052/class2.mrc /path/to/relion/project/Class3D/job052/class3.mrc -g 0,1,2 -o /path/to/output/dir --temp /path/to/temp/dir
 ```
 
 </details>
