@@ -26,7 +26,7 @@ curl -fsSL https://pixi.sh/install.sh | PIXI_HOME=/path/to/shared/folder bash
 ### Create pixi environment:
 
 ```bash
-cd AutoClass3D
+cd <Your Installation Folder> # default is DeepMASC
 pixi install
 ```
 
