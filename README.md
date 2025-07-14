@@ -33,7 +33,7 @@ pixi install
 Configure environment for shared usage:
 
 ```bash
-chmod -R 755 . # set permission to read and exec for other users
+chmod -R 777 . # set permission to read, write and exec for all users
 ```
 
 </details>
