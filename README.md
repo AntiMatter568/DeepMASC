@@ -149,8 +149,8 @@ Optional Arguments:
 <details>
 
 **Required Arguments:**
-* `-i, --input_map_path`: Input MRC map file to determine the contour
-* `-o, --output_folder`: Output folder to store all the files
+* `-i, --input_map_path`: Input MRC map file to determine the contour (If used from a different directory other than DeepMASC repo, the paths must be absolute)
+* `-o, --output_folder`: Output folder to store all the files (If used from a different directory other than DeepMASC repo, the paths must be absolute)
 * `-g, --gpu_id`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing.
 
 **Optional Arguments:**
