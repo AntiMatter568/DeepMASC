@@ -423,8 +423,9 @@ if __name__ == "__main__":
             protein_prob = protein_prob > args.cutoff_prob
 
         # make morphological operations on the mask
-        mask = closing(protein_prob.astype(bool), ball(args.morph_radius))
-        mask = opening(mask.astype(bool), ball(args.morph_radius))
+        mask = opening(protein_prob.astype(bool), ball(args.morph_radius))
+        mask = closing(mask.astype(bool), ball(args.morph_radius))
+
 
         # save the mask
         save_mrc(args.input_map_path, mask, final_out_mask_path)
