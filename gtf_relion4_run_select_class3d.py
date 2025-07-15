@@ -84,7 +84,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input", "--in_parts", type=str, help="RELION requirement! Input particle star file Path (relative)")
 parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
 parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD prediction")
-parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
 parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
 parser.add_argument("-r", "--reso", type=str, help="Resolution to choose the deep learning model", default="Low")
 parser.add_argument("-b", "--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
@@ -202,9 +201,10 @@ os.chdir(CURR_SCRIPT_PATH / "CryoREAD")
 result_list_cryoREAD = []
 
 # Create the temp directory if it doesn't exist
-os.makedirs(args.temp, exist_ok=True)
+temp_base_dir = os.path.join(outargs_rpath, "temp")
+os.makedirs(temp_base_dir, exist_ok=True)
 
-temp_dir = tempfile.TemporaryDirectory(dir=args.temp)
+temp_dir = tempfile.TemporaryDirectory(dir=temp_base_dir)
 try:
     temp_dir_name = temp_dir.name
     print("[GTF_DEBUG] Created temporary directory", temp_dir_name)

@@ -35,7 +35,6 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
     parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD prediction", default="0")
     parser.add_argument("-b", "--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
-    parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
     parser.add_argument("-n", "--num_components", type=int, default=2, help="Number of components for mixture model")
     parser.add_argument("-r", "--refinement_mask", type=bool, help="Generate more fine-grained mask for refinement", default=False)
     parser.add_argument("-m", "--morph_radius", type=int, default=3, help="The radius for morphological operations (opening, closing)")
@@ -125,7 +124,6 @@ if __name__ == "__main__":
         f"--num_components={args.num_components}",
         f"--morph_radius={args.morph_radius}",
         f"--mask_diameter={args.mask_diameter}",
-        f"--temp={args.temp}",
     ]
 
     if args.refinement_mask:

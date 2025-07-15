@@ -15,7 +15,6 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for prediction", required=True)
     parser.add_argument("-o", "--output", type=str, help="Output folder name", required=True)
     parser.add_argument("-b", "--batch", type=int, help="Batch size to use", required=False, default=4)
-    parser.add_argument("--temp", type=str, help="Temporary directory path", default="/tmp")
     parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
     parser.add_argument("-r","--reso", choices=["Low", "High"], type=str, help="Resolution to choose the deep learning model", default="Low")
     parser.add_argument("--dryrun", action="store_true", help="Dry run, do not run CryoREAD but just print commands")
@@ -47,8 +46,9 @@ if __name__ == "__main__":
     # run CryoREAD
 
     # make temp dir
-    os.makedirs(args.temp, exist_ok=True)
-    temp_dir = tempfile.TemporaryDirectory(dir=args.temp)
+    temp_path = os.path.join(args.output, "temp")
+    os.makedirs(temp_path, exist_ok=True)
+    temp_dir = tempfile.TemporaryDirectory(dir=temp_path)
 
     try:
         temp_dir_name = temp_dir.name
