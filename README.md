@@ -65,8 +65,6 @@ Required Arguments:
 * `-g, --gpus`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing. Multiple GPU IDs can be provided using a comma-separated list.
 
 Optional Arguments:
-* `--temp`: Temporary directory path for intermediate files (default: "/tmp"). (If used from a different directory other than DeepMASC repo, the paths must be absolute)
-
 * `--debug`: Enable debug mode to generate full output (default: False). When enabled, copy the full cryoREAD output to the output directory for debugging.
 
 * `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low"). Determines which model checkpoint will be used based on the desired resolution.
@@ -79,7 +77,7 @@ Optional Arguments:
 ### Example for Class3D/InitialModel Selection
 
 ```bash
-pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autoselectclass -f /path/to/relion/project/Class3D/job052/class1.mrc /path/to/relion/project/Class3D/job052/class2.mrc /path/to/relion/project/Class3D/job052/class3.mrc -g 0,1,2 -o /path/to/output/dir --temp /path/to/temp/dir
+pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autoselectclass -f /path/to/relion/project/Class3D/job052/class1.mrc /path/to/relion/project/Class3D/job052/class2.mrc /path/to/relion/project/Class3D/job052/class3.mrc -g 0,1,2 -o /path/to/output/dir
 ```
 
 </details>
@@ -104,8 +102,6 @@ Required Arguments:
 * `-g, --gpus`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing. Multiple GPU IDs can be provided using a comma-separated list.
 
 Optional Arguments:
-* `--temp`: Temporary directory path for intermediate files (default: "/tmp")
-
 * `--debug`: Enable debug mode to generate full output (default: False). When enabled, copy the full cryoREAD output to the output directory for debugging.
 
 * `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low"). Determines which model checkpoint will be used based on the desired resolution.
@@ -118,7 +114,7 @@ Optional Arguments:
 1. From RELION GUI, Choose "External", then in "External Executable" box enter `python /path/to/gtf_relion4_run_select_class3d.py`.
 2. In the "Input" tab, in "Input Particles" box, enter the path to the input data star file like `Class3D/job052/run_it200_data.star`.
 3. In the Params tab, enter `gpus` in values box, then enter the gpus to use for inference like `0,1,2`. (required)
-4. In the Params tab, enter other optional parameters like `temp` (optional), `debug` (optional), `reso` (optional), `batch` (optional), and their corresponding values.
+4. In the Params tab, enter other optional parameters like `debug` (optional), `reso` (optional), `batch` (optional), and their corresponding values.
 5. In the Running tab, the "Number of threads" box should be set to 1.
 6. Adjust your submission to queue setting accordingly if you use a managed queue job submission system.
 7. Click the "Run" button.
@@ -162,7 +158,6 @@ Optional Arguments:
 * `-d, --mask_diameter`: The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable (default: 95)
 * `-a, --aggressive`: Use more aggressive mask cutoff when using GMM mask (default: False)
 * `-c, --cutoff_prob`: The cutoff probability for the mask if using CryoREAD mask (default: 0.3)
-* `--temp`: The temporary folder for CryoREAD (default: "/tmp")
 * `--debug`: Enable debug mode (default: False)
 
 ## Example for GMM Auto Contouring for Rough Masking
@@ -246,7 +241,6 @@ When using --refinement_mask, additional files are generated:
    - `mask_diameter`: Diameter of spherical mask in percentage (optional, default: 95)
    - `aggressive`: Set to `True` for more aggressive masking (optional)
    - `cutoff_prob`: Cutoff probability for CryoREAD mask (optional, default: 0.3)
-   - `temp`: Temporary directory path (optional, default: "/tmp")
    - `debug`: Set to `True` to enable debug mode (optional)
 
 4. In the Running tab:
