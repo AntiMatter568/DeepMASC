@@ -5,13 +5,14 @@ from loguru import logger
 import argparse
 import os
 import tempfile
+import glob
 from map_utils import calc_map_ccc, calculate_fsc
 import select
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--files", nargs="+", type=str, help="List of input mrc files", required=True)
+    parser.add_argument("-f", "--files", nargs="+", type=str, help="List of input mrc files (supports wildcards like *.mrc)", required=True)
     parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for prediction", required=True)
     parser.add_argument("-o", "--output", type=str, help="Output folder name", required=True)
     parser.add_argument("-b", "--batch", type=int, help="Batch size to use", required=False, default=4)
@@ -33,7 +34,20 @@ if __name__ == "__main__":
     CURR_SCIPT_PATH = Path(__file__).absolute().parent
     CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
 
-    mrc_files = args.files
+    # Expand wildcards in file patterns
+    mrc_files = []
+    for pattern in args.files:
+        expanded_files = glob.glob(pattern)
+        if expanded_files:
+            mrc_files.extend(expanded_files)
+        else:
+            # If no files match the pattern, treat it as a literal filename
+            mrc_files.append(pattern)
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    mrc_files = [f for f in mrc_files if not (f in seen or seen.add(f))]
+
     # check if files exists
     for mrc_file in mrc_files:
         if not os.path.exists(mrc_file):
