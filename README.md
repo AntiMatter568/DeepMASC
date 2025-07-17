@@ -67,7 +67,7 @@ Required Arguments:
 Optional Arguments:
 * `--debug`: Enable debug mode to generate full output (default: False). When enabled, copy the full cryoREAD output to the output directory for debugging.
 
-* `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low"). Determines which model checkpoint will be used based on the desired resolution.
+* `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low", options are "Low" (>5Å) or "High" (<5Å)). Determines which model checkpoint will be used based on the desired resolution.
 
 * `-b, --batch`: Batch size to use for CryoREAD prediction. Controls how many boxes are processed simultaneously during the prediction phase.
 
@@ -104,7 +104,7 @@ Required Arguments:
 Optional Arguments:
 * `--debug`: Enable debug mode to generate full output (default: False). When enabled, copy the full cryoREAD output to the output directory for debugging.
 
-* `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low"). Determines which model checkpoint will be used based on the desired resolution.
+* `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low", options are "Low" (>5Å) or "High" (<5Å)). Determines which model checkpoint will be used based on the desired resolution.
 
 * `-b, --batch`: Batch size to use for CryoREAD prediction. Controls how many boxes are processed simultaneously during the prediction phase.
 

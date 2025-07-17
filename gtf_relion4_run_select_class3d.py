@@ -85,7 +85,7 @@ parser.add_argument("-i", "--input", "--in_parts", type=str, help="RELION requir
 parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
 parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD prediction")
 parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
-parser.add_argument("-r", "--reso", type=str, help="Resolution to choose the deep learning model", default="Low")
+parser.add_argument("-r", "--reso", choices=["Low", "High"], type=str, help="Resolution to choose the deep learning model, can be Low(>5Å) or High(<5Å)", default="Low")
 parser.add_argument("-b", "--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
 
 ### parser.add_argument("-m", "--model_star",           type=str,                                             help = "Input model star file Path (relative).")
