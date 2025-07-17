@@ -2,7 +2,6 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import re
 import starfile
 import os
 import pandas as pd
@@ -28,7 +27,7 @@ def evaluate_mask3d(data):
     # Extract data columns
     resolution = data[:, 0]
     unmasked_fsc = data[:, 1]
-    masked_fsc = data[:, 2]
+    # masked_fsc = data[:, 2]  # Not used in evaluation
     phase_rand_fsc = data[:, 3]
     corrected_fsc = data[:, 4]
 
@@ -182,6 +181,46 @@ def plot_fsc_curves(data, results, filename, save_dir):
     plt.savefig(os.path.join(save_dir, fig_save_name), dpi=300)
     print(f"\nFSC curves plot saved as {os.path.join(save_dir, fig_save_name)}")
     # plt.show()
+    plt.close()  # Close the figure to free memory
+
+
+def evaluate_refinement_mask(star_file, save_dir):
+    """
+    Evaluate refinement mask from a star file.
+
+    Args:
+        star_file (str): Path to the star file containing FSC data
+        save_dir (str): Directory to save evaluation results and plots
+
+    Returns:
+        dict: Evaluation results containing resolutions and pass/fail status
+    """
+    print(f"Evaluating refinement mask using file: {star_file}")
+
+    # Create save directory if it doesn't exist
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    # Parse star file
+    try:
+        data = parse_star_file(star_file)
+    except Exception as e:
+        print(f"Error parsing star file {star_file}: {e}")
+        return None
+
+    # Evaluate mask
+    results = evaluate_mask3d(data)
+
+    # Save result dict as csv
+    result_df = pd.DataFrame([results])  # Wrap in list to create single row DataFrame
+    csv_filename = f"mask3d_evaluation_{os.path.basename(star_file).split('.')[0]}.csv"
+    result_df.to_csv(os.path.join(save_dir, csv_filename), index=False)
+
+    # Plot results if valid
+    if results["valid"]:
+        plot_fsc_curves(data, results, star_file, save_dir)
+
+    return results
 
 
 def main():
@@ -191,23 +230,12 @@ def main():
 
     star_file = sys.argv[1]
     save_dir = sys.argv[2]
-    print(f"Evaluating Mask3D using file: {star_file}")
 
-    # Parse star file
-    data = parse_star_file(star_file)
-    if data is None:
+    # Use the new function
+    results = evaluate_refinement_mask(star_file, save_dir)
+
+    if results is None:
         sys.exit(1)
-
-    # Evaluate mask
-    results = evaluate_mask3d(data)
-
-    # save result dict as csv
-    result_df = pd.DataFrame(results)
-    result_df.to_csv(os.path.join(save_dir, "mask3d_evaluation.csv"), index=False)
-
-    # Plot results if valid
-    if results["valid"]:
-        plot_fsc_curves(data, results, star_file, save_dir)
 
 
 if __name__ == "__main__":
