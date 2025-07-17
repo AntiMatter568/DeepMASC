@@ -163,13 +163,13 @@ Optional Arguments:
 ## Example for GMM Auto Contouring for Rough Masking
 
 ```bash
-pixi run autocontour -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p
+pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autocontour -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p
 ```
 
 ## Example for CryoREAD Auto Refinement Masking
 
 ```bash
-pixi run autocontour -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p -r -b 16
+pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autocontour -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p -r -b 16
 ```
 
 </details>
