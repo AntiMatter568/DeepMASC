@@ -112,9 +112,9 @@ Optional Arguments:
 
 
 1. From RELION GUI, Choose "External", then in "External Executable" box enter `python /path/to/gtf_relion4_run_select_class3d.py`.
-2. In the "Input" tab, in "Input Particles" box, enter the path to the input data star file like `Class3D/job052/run_it200_data.star`.
+2. In the "Input" tab, in "Input Particles" box, enter the path to the input data star file like `Class3D/job052/run_it025_data.star`.
 3. In the Params tab, enter `gpus` in values box, then enter the gpus to use for inference like `0,1,2`. (required)
-4. In the Params tab, enter other optional parameters like `debug` (optional), `reso` (optional), `batch` (optional), and their corresponding values.
+4. In the Params tab, enter other optional parameters like `debug` (optional, true or false), `reso` (optional, Low(>5Å) or High(<5Å)), `batch` (optional, on modern GPU 8 and 16 works well).
 5. In the Running tab, the "Number of threads" box should be set to 1.
 6. Adjust your submission to queue setting accordingly if you use a managed queue job submission system.
 7. Click the "Run" button.
