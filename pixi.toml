@@ -26,6 +26,7 @@ pytorch-cuda = { version = "11.8.*", channel = "pytorch" }
 scikit-learn = "*"
 scikit-image = "*"
 matplotlib = "*"
+seaborn = "*"
 biopython = "*"
 numba = "*"
 numpy = "<2"
