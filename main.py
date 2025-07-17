@@ -6,25 +6,55 @@ import argparse
 import os
 import tempfile
 import glob
-from map_utils import calc_map_ccc, calculate_fsc
+from map_utils import calc_map_ccc, calculate_fsc, is_map_empty
 import select
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--files", nargs="+", type=str, help="List of input mrc files (supports wildcards like *.mrc)", required=True)
-    parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for prediction", required=True)
-    parser.add_argument("-o", "--output", type=str, help="Output folder name", required=True)
-    parser.add_argument("-b", "--batch", type=int, help="Batch size to use", required=False, default=4)
-    parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
-    parser.add_argument("-r","--reso", choices=["Low", "High"], type=str, help="Resolution to choose the deep learning model", default="Low")
-    parser.add_argument("--dryrun", action="store_true", help="Dry run, do not run CryoREAD but just print commands")
+    parser.add_argument(
+        "-f",
+        "--files",
+        nargs="+",
+        type=str,
+        help="List of input mrc files (supports wildcards like *.mrc)",
+        required=True,
+    )
+    parser.add_argument(
+        "-g", "--gpus", type=str, help="GPU ID to use for prediction", required=True
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, help="Output folder name", required=True
+    )
+    parser.add_argument(
+        "-b", "--batch", type=int, help="Batch size to use", required=False, default=4
+    )
+    parser.add_argument(
+        "--debug",
+        type=bool,
+        help="Enable debug mode to generate full output",
+        default=False,
+    )
+    parser.add_argument(
+        "-r",
+        "--reso",
+        choices=["Low", "High"],
+        type=str,
+        help="Resolution to choose the deep learning model",
+        default="Low",
+    )
+    parser.add_argument(
+        "--dryrun",
+        action="store_true",
+        help="Dry run, do not run CryoREAD but just print commands",
+    )
 
     args = parser.parse_args()
 
     os.makedirs(args.output, exist_ok=True)
 
-    logger.add("AutoClass3D.log")
+    logger.add("DeepMASC_AutoSelectClass.log")
 
     # Determine resolution of model to use
     reso_input = 8.0 if args.reso == "Low" else 2.0
@@ -43,7 +73,7 @@ if __name__ == "__main__":
         else:
             # If no files match the pattern, treat it as a literal filename
             mrc_files.append(pattern)
-    
+
     # Remove duplicates while preserving order
     seen = set()
     mrc_files = [f for f in mrc_files if not (f in seen or seen.add(f))]
@@ -69,6 +99,10 @@ if __name__ == "__main__":
         map_list = []
 
         for mrc_file in mrc_files:
+            if is_map_empty(mrc_file):
+                logger.warning(f"Empty map found, skipping {mrc_file}")
+                map_list.append([mrc_file, 0.0, 0.0])  # real space CC, golden standard FSC, indicator for empty map
+                continue
             map_name = Path(mrc_file).stem.split(".")[0].strip()
             curr_out_dir = os.path.join(temp_dir_name, map_name)
 

@@ -1,6 +1,13 @@
 import mrcfile
 import numpy as np
 
+def is_map_empty(mrc_file):
+    # check if the map is empty
+    with mrcfile.open(mrc_file, permissive=True) as mrc:
+        if np.allclose(mrc.data, 0):
+            return True
+    return False
+
 
 def calc_map_ccc(input_mrc, input_pred, center=True, overlap_only=False):
     """
