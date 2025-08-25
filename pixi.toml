@@ -35,8 +35,11 @@ tqdm = "*"
 mrcfile = "*"
 loguru = "*"
 mkl = "2024.0.*"
+pytz = ">=2025.2,<2026"
+pandas = ">=2.3.2,<3"
 
 [pypi-dependencies]
 ortools = ">=9.11.4210, <10"
 progress = ">=1.6, <2"
 numba-progress = ">=1.1.0, <2"
+starfile = ">=0.5.13, <0.6"
