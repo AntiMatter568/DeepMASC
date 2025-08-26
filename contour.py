@@ -40,32 +40,20 @@ def create_spherical_mask(array_shape, radius=95):
 
 
 def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_level=0.0, debug=False):
-    import tempfile
-    import shutil
-
     output_folder = str(Path(output_folder).absolute())
-    TEMP_CURR_DIR = os.getcwd()
-    os.chdir(CRYOREAD_PATH)
-
-    # Create a temporary directory for processing if not in debug mode
-    temp_dir = None
-    curr_out_dir = output_folder
-    map_name = Path(mrc_path).stem.split(".")[0].strip()
+    
+    # Create output directory if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+    logger.info(f"Using output directory: {output_folder}")
 
     try:
-        if not debug:
-            # Use temporary directory for processing in output/temp
-            temp_base_dir = os.path.join(output_folder, "temp")
-            os.makedirs(temp_base_dir, exist_ok=True)
-            temp_dir = tempfile.TemporaryDirectory(dir=temp_base_dir)
-            curr_out_dir = os.path.join(temp_dir.name, map_name)
-            os.makedirs(curr_out_dir, exist_ok=True)
-            logger.info(f"Created temporary directory: {curr_out_dir}")
-
+        # Use absolute path to main.py in CryoREAD directory
+        cryoread_main_path = CRYOREAD_PATH / "main.py"
+        
         # Prepare the command for running CryoREAD
         cmd = [
             "python",
-            "main.py",
+            str(cryoread_main_path),
             "--mode=0",
             f"-F={mrc_path}",
             f"--contour={contour_level}",
@@ -73,40 +61,16 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
             f"--batch_size={batch_size}",
             f"--prediction_only",
             f"--resolution=2.0",
-            f"--output={curr_out_dir}",
+            f"--output={output_folder}",
         ]
 
         logger.info("Running CryoREAD command: " + " ".join(cmd))
 
+        # Run the command with CryoREAD directory as working directory
         exit_code = asyncio.run(run_subprocess(cmd))
         if exit_code != 0:
             logger.error(f"CryoREAD process exited with code {exit_code}")
             return False
-
-        # If using temp directory, copy necessary files to the final output directory
-        if not debug and temp_dir:
-            # Copy specific files or directories as needed
-            try:
-                logger.info(f"Copying files from {curr_out_dir} to {output_folder}")
-                # Copy important files
-                important_files = {
-                    "input_segment.mrc": "input_segment.mrc",
-                    "mask_protein.mrc": "mask_protein.mrc",
-                    "CCC_FSC05.txt": "CCC_FSC05.txt",
-                    "2nd_stage_detection/chain_base_prob.mrc": "chain_base_prob.mrc",
-                    "2nd_stage_detection/chain_phosphate_prob.mrc": "chain_phosphate_prob.mrc",
-                    "2nd_stage_detection/chain_sugar_prob.mrc": "chain_sugar_prob.mrc",
-                    "2nd_stage_detection/chain_protein_prob.mrc": "chain_protein_prob.mrc",
-                }
-
-                for src_name, dst_name in important_files.items():
-                    src_path = os.path.join(curr_out_dir, src_name)
-                    if os.path.exists(src_path):
-                        shutil.copy(src_path, os.path.join(output_folder, dst_name))
-                        logger.info(f"Copied {src_name} to output folder")
-            except Exception as e:
-                logger.error(f"Error copying files: {str(e)}")
-                return False
 
         logger.info("CryoREAD completed successfully")
         return True  # Return success status
@@ -114,11 +78,6 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
     except Exception as e:
         logger.error(f"Error running CryoREAD: {str(e)}")
         return False
-    finally:
-        # Clean up temporary directory if it was created
-        if temp_dir:
-            temp_dir.cleanup()
-        os.chdir(TEMP_CURR_DIR)
 
 
 def save_mrc(orig_map_path, data, out_path):
