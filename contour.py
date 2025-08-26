@@ -372,7 +372,7 @@ if __name__ == "__main__":
             exit(1)
 
         # load the mask
-        with mrcfile.open(os.path.join(args.output_folder, "chain_protein_prob.mrc"), permissive=True) as mrc:
+        with mrcfile.open(os.path.join(args.output_folder, "2nd_stage_detection", "chain_protein_prob.mrc"), permissive=True) as mrc:
             protein_prob = mrc.data.copy()
             # binarize the protein probability map
             protein_prob = protein_prob > args.cutoff_prob
