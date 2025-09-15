@@ -62,6 +62,27 @@ conda activate DeepMASC
 # Note: Environment activation is the same for both conda and mamba
 ```
 
+### Configure config.py:
+
+After setting up the conda environment, you need to configure the `config.py` file to point to your conda environment's Python executable:
+
+1. **Find your conda environment's Python path:**
+   ```bash
+   # Method 1: Using conda info
+   conda info --envs
+   
+   # Method 2: Activate environment and check Python path
+   conda activate DeepMASC
+   which python
+   ```
+
+2. **Edit config.py file:**
+   Open `config.py` in the DeepMASC directory and update the `CONDA_PYTHON_PATH` variable:
+   
+   ```python
+   # Update this line with your actual conda environment path
+   CONDA_PYTHON_PATH = "/path/to/your/conda/envs/DeepMASC/bin/python"
+   ```
 </details>
 
 # AutoClass3D
