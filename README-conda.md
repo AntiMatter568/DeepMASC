@@ -20,9 +20,9 @@ These examples can be used to test the functionality of DeepMASC without requiri
 git clone https://github.com/AntiMatter568/DeepMASC
 ```
 
-### Install conda:
+### Install conda/mamba:
 
-If you don't have conda installed, choose one of the following options:
+If you don't have conda or mamba installed, choose one of the following options:
 
 #### Option 1: Miniconda (Recommended)
 ```bash
@@ -32,9 +32,9 @@ bash Miniconda3-latest-Linux-x86_64.sh
 # Follow the prompts and restart your terminal
 ```
 
-#### Option 2: Miniforge (Community-driven, includes conda-forge by default)
+#### Option 2: Miniforge (Community-driven, includes conda-forge by default + mamba)
 ```bash
-# Download and install Miniforge
+# Download and install Miniforge (includes both conda and mamba)
 wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh
 # Follow the prompts and restart your terminal
@@ -49,18 +49,17 @@ For other operating systems, visit:
 ```bash
 cd <Your Installation Folder> # default is DeepMASC
 conda env create -f environment.yml
+
+# If using miniforge with mamba (faster alternative):
+mamba env create -f environment.yml
 ```
 
 ### Activate the environment:
 
 ```bash
 conda activate DeepMASC
-```
 
-Configure environment for shared usage:
-
-```bash
-chmod -R 777 . # set permission to read, write and exec for all users
+# Note: Environment activation is the same for both conda and mamba
 ```
 
 </details>
@@ -87,8 +86,10 @@ PYTHONNOUSERSITE=1 python main.py
 You can also run DeepMASC without activating the environment by using the direct path to the conda environment's Python interpreter:
 
 ```bash
-# Find your conda environment path
+# Find your conda/mamba environment path
 conda info --envs
+# OR if using mamba:
+mamba info --envs
 
 # Use the direct Python path (replace <CONDA_PATH> with your actual conda installation path)
 <CONDA_PATH>/envs/DeepMASC/bin/python main.py
@@ -185,6 +186,7 @@ Optional Arguments:
 
 1. From RELION GUI, Choose "External", then in "External Executable" box enter one of:
    - **Using conda run command**: `conda run -n DeepMASC python /path/to/gtf_relion4_run_select_class3d.py`
+   - **Using mamba run command** (if using miniforge): `mamba run -n DeepMASC python /path/to/gtf_relion4_run_select_class3d.py`
    - **Using direct Python path**: `/path/to/conda/envs/DeepMASC/bin/python /path/to/gtf_relion4_run_select_class3d.py`
 2. In the "Input" tab, in "Input Particles" box, enter the path to the input data star file like `Class3D/job016/run_it025_data.star` (using the provided example) or your own `Class3D/jobXXX/run_it025_data.star`.
 3. In the Params tab, enter `gpus` in values box, then enter the gpus to use for inference like `0,1,2`. (required)
@@ -322,6 +324,7 @@ When using --refinement_mask, additional files are generated:
 
 1. From RELION GUI, Choose "External", then in "External Executable" box enter one of:
    - **Using conda run command**: `conda run -n DeepMASC python /path/to/gtf_relion4_run_autocontour.py`
+   - **Using mamba run command** (if using miniforge): `mamba run -n DeepMASC python /path/to/gtf_relion4_run_autocontour.py`
    - **Using direct Python path**: `/path/to/conda/envs/DeepMASC/bin/python /path/to/gtf_relion4_run_autocontour.py`
 
 2. In the "Input" tab:
