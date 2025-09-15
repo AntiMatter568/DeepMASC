@@ -67,6 +67,7 @@ if __name__ == "__main__":
     # Expand wildcards in file patterns
     mrc_files = []
     for pattern in args.files:
+        print("found pattern: ", pattern)
         expanded_files = glob.glob(pattern)
         if expanded_files:
             mrc_files.extend(expanded_files)
@@ -163,7 +164,8 @@ if __name__ == "__main__":
                 real_space_cc = 0.0
 
             try:
-                x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path)
+                fsc_output_path = os.path.join(curr_out_dir, "fsc_data.txt")
+                x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path, fsc_output_path)
             except:
                 logger.warning("Failed to calculate FSC")
                 cutoff_05 = 0.0
