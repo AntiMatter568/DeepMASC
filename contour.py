@@ -387,7 +387,7 @@ if __name__ == "__main__":
         mask = closing(mask.astype(bool), ball(args.morph_radius))
         
         # save the mask
-        save_mrc(input_map_path, mask, final_out_mask_path)
+        save_mrc(os.path.join(output_folder, "input.mrc"), mask, final_out_mask_path)
 
     else:
         if args.aggressive:

@@ -1,22 +1,27 @@
 import os
 import sys
+from chimera import runCommand as rc
 
+# Command line argument parsing and execution
+print("Command line arguments: {}".format(sys.argv))
 
-def resample_single_map(input_map, reference_map, output_map):
-    """
-    Resample a single MRC map using ChimeraX to match a reference grid.
+# Handle Chimera's command line structure
+# Expected: [__main__.py, --nogui, script_name, input_map, reference_map, output_map]
+if len(sys.argv) >= 6:
+    input_map = sys.argv[3]
+    reference_map = sys.argv[4] 
+    output_map = sys.argv[5]
+else:
+    sys.stderr.write("Error: Expected 3 arguments (input_map, reference_map, output_map)\n")
+    sys.stderr.write("Usage: chimera --nogui resample_chimera.py input_map reference_map output_map\n")
+    sys.exit(1)
 
-    Parameters:
-    -----------
-    input_map : str
-        Path to input MRC file to resample
-    reference_map : str
-        Path to reference MRC file with target grid
-    output_map : str
-        Path to save resampled output file
-    """
-    from chimera import runCommand as rc
-
+try:
+    # Convert to absolute paths
+    input_map = os.path.abspath(input_map)
+    reference_map = os.path.abspath(reference_map)
+    output_map = os.path.abspath(output_map)
+    
     # Check if input files exist
     if not os.path.exists(input_map):
         raise FileNotFoundError("Input map not found: {}".format(input_map))
@@ -67,22 +72,6 @@ def resample_single_map(input_map, reference_map, output_map):
         rc("close all")  # Clean up on error
         raise Exception("Error during resampling: {}".format(e))
 
-
-# Command line argument parsing and execution
-print("Command line arguments: {}".format(sys.argv))
-
-# Handle Chimera's command line structure
-# Expected: [__main__.py, --nogui, script_name, input_map, reference_map, output_map]
-if len(sys.argv) >= 6:
-    input_map = sys.argv[3]
-    reference_map = sys.argv[4] 
-    output_map = sys.argv[5]
-else:
-    sys.stderr.write("Error: Expected 3 arguments (input_map, reference_map, output_map)\n")
-    sys.stderr.write("Usage: chimera --nogui resample_chimera.py input_map reference_map output_map\n")
-    sys.exit(1)
-try:
-    resample_single_map(os.path.abspath(input_map), os.path.abspath(reference_map), os.path.abspath(output_map))
 except Exception as e:
     sys.stderr.write("Error: {}\n".format(e))
     sys.exit(1)
