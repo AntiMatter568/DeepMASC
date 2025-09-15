@@ -77,8 +77,8 @@ def save_dens_map(save_map_path,new_dens,
         mrc_new.header.maps = mrc.header.maps
         mrc_new.header.origin = orig
         mrc_new.update_header_stats()
-        mrc.print_header()
-        mrc_new.print_header()
+        # mrc.print_header()
+        # mrc_new.print_header()
         mrc_new.close()
         del data_new
 def increase_map_density(input_path,output_path,add_contour):
@@ -130,8 +130,8 @@ def save_predict_specific_map(save_map_path,specific_class,prediction_array,
         mrc_new.header.maps = mrc.header.maps
         mrc_new.header.origin = orig
         mrc_new.update_header_stats()
-        mrc.print_header()
-        mrc_new.print_header()
+        # mrc.print_header()
+        # mrc_new.print_header()
         mrc_new.close()
         del data_new
 
@@ -236,8 +236,8 @@ def segment_map(input_map,output_map,contour=0):
         #mrc_new.header.origin = origin
         (mrc_new.header.origin.x, mrc_new.header.origin.y, mrc_new.header.origin.z) = origin
         mrc_new.update_header_stats()
-        mrc.print_header()
-        mrc_new.print_header()
+        # mrc.print_header()
+        # mrc_new.print_header()
         mrc_new.close()
     return output_map
 def permute_map_coord_to_pdb(input_coord,mapc,mapr,maps):

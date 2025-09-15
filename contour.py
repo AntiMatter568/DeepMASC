@@ -4,6 +4,7 @@ import mrcfile
 import numpy as np
 from sklearn import mixture
 import os
+import subprocess
 
 from skimage.morphology import ball, opening, closing
 from skimage.filters import rank
@@ -15,8 +16,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 from loguru import logger
-from utils import run_subprocess
-import asyncio
+from utils import run_subprocess_realtime
 import shutil
 import sys
 
@@ -68,7 +68,8 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
         logger.info("Running CryoREAD command: " + " ".join(cmd))
 
         # Run the command with CryoREAD directory as working directory
-        exit_code = asyncio.run(run_subprocess(cmd))
+        exit_code = run_subprocess_realtime(cmd)  # No timeout for CryoREAD
+        
         if exit_code != 0:
             logger.error(f"CryoREAD process exited with code {exit_code}")
             return False
@@ -347,10 +348,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     final_out_mask_path = os.path.join(args.output_folder, "prot_mask_final.mrc")
+    
+    input_map_path = os.path.abspath(args.input_map_path)
+    output_folder = os.path.abspath(args.output_folder)
 
     revised_contour, mask_percent = gmm_mask(
-        input_map_path=args.input_map_path,
-        output_folder=args.output_folder,
+        input_map_path=input_map_path,
+        output_folder=output_folder,
         num_components=args.num_components,
         use_grad=True,
         n_init=3,
@@ -362,8 +366,8 @@ if __name__ == "__main__":
 
     if args.refinement_mask:
         if not run_cryoREAD(
-            mrc_path=args.input_map_path,
-            output_folder=args.output_folder,
+            mrc_path=input_map_path,
+            output_folder=output_folder,
             batch_size=args.batch_size,
             gpu_id=args.gpu_id,
             contour_level=revised_contour,
@@ -373,7 +377,7 @@ if __name__ == "__main__":
             exit(1)
 
         # load the mask
-        with mrcfile.open(os.path.join(args.output_folder, "2nd_stage_detection", "chain_protein_prob.mrc"), permissive=True) as mrc:
+        with mrcfile.open(os.path.join(output_folder, "2nd_stage_detection", "chain_protein_prob.mrc"), permissive=True) as mrc:
             protein_prob = mrc.data.copy()
             # binarize the protein probability map
             protein_prob = protein_prob > args.cutoff_prob
@@ -381,13 +385,37 @@ if __name__ == "__main__":
         # make morphological operations on the mask
         mask = opening(protein_prob.astype(bool), ball(args.morph_radius))
         mask = closing(mask.astype(bool), ball(args.morph_radius))
-
-
+        
         # save the mask
-        save_mrc(args.input_map_path, mask, final_out_mask_path)
+        save_mrc(input_map_path, mask, final_out_mask_path)
 
     else:
         if args.aggressive:
-            shutil.copy(os.path.join(args.output_folder, "prot_mask_aggressive.mrc"), final_out_mask_path)
+            shutil.copy(os.path.join(output_folder, "prot_mask_aggressive.mrc"), final_out_mask_path)
         else:
-            shutil.copy(os.path.join(args.output_folder, "prot_mask.mrc"), final_out_mask_path)
+            shutil.copy(os.path.join(output_folder, "prot_mask.mrc"), final_out_mask_path)
+
+    # Resample the final mask to match the original input map when refinement_mask is enabled
+    if args.refinement_mask:
+        final_out_mask_path_resampled = os.path.join(output_folder, "prot_mask_final_resampled.mrc")
+        
+        resample_script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resample_chimera.py")
+        cmd = ["chimera", "--nogui", resample_script_path, input_map_path, final_out_mask_path, final_out_mask_path_resampled]
+        logger.info(f"Running chimera resampling command: {' '.join(cmd)}")
+        try:
+            exit_code = run_subprocess_realtime(cmd, timeout=300)  # 5 minutes timeout for Chimera
+        except subprocess.TimeoutExpired:
+            logger.error("Chimera resampling timed out after 300 seconds")
+            raise ValueError("# Logical Error: Chimera resampling timed out")
+        
+        if exit_code != 0:
+            logger.error(f"Chimera failed with exit code {exit_code}")
+            raise ValueError(f"# Logical Error: Chimera failed with exit code {exit_code}")
+        else:
+            logger.info("Resampling completed successfully")
+    else:
+        # Create a symlink to indicate no resampling was done
+        final_out_mask_path_resampled = os.path.join(output_folder, "prot_mask_final_resampled.mrc")
+        if os.path.exists(final_out_mask_path_resampled):
+            os.remove(final_out_mask_path_resampled)
+        os.symlink(final_out_mask_path, final_out_mask_path_resampled)

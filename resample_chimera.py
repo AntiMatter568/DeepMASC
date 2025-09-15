@@ -81,12 +81,6 @@ else:
     sys.stderr.write("Error: Expected 3 arguments (input_map, reference_map, output_map)\n")
     sys.stderr.write("Usage: chimera --nogui resample_chimera.py input_map reference_map output_map\n")
     sys.exit(1)
-
-print("Parsed arguments:")
-print("  input_map: {}".format(input_map))
-print("  reference_map: {}".format(reference_map))
-print("  output_map: {}".format(output_map))
-
 try:
     resample_single_map(os.path.abspath(input_map), os.path.abspath(reference_map), os.path.abspath(output_map))
 except Exception as e:

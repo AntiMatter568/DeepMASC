@@ -15,7 +15,7 @@ def Unify_Map(input_map_path, new_map_path):
     mapcrs = np.asarray([mrc.header.mapc, mrc.header.mapr, mrc.header.maps], dtype=int)
     # if np.sum(nstart) == 0:
     #     return input_map_path
-    mrc.print_header()
+    # mrc.print_header()
     mrc.close()
 
     # Reorder
@@ -38,7 +38,7 @@ def Unify_Map(input_map_path, new_map_path):
     (mrc_new.header.origin.x, mrc_new.header.origin.y, mrc_new.header.origin.z) = origin
     (mrc_new.header.cella.x, mrc_new.header.cella.y, mrc_new.header.cella.z) = cella
     mrc_new.update_header_stats()
-    mrc_new.print_header()
+    # mrc_new.print_header()
     mrc_new.close()
 
     # Validate the new MRC file

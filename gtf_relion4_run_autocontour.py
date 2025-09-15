@@ -8,6 +8,7 @@ from __future__ import print_function
 import argparse
 import os
 import shutil  # copyfile
+import subprocess
 import tempfile
 import select
 import sys
@@ -176,14 +177,8 @@ if __name__ == "__main__":
     assert os.path.exists(output_mask_mrc_file), f"# Logical Error: Output Mask MRC file ({output_mask_mrc_file}) must exist."
 
     output_mask_mrc_file_resampled = os.path.join(outargs_rpath, "prot_mask_final_resampled.mrc")
+    assert os.path.exists(output_mask_mrc_file_resampled), f"# Logical Error: Output Mask MRC file resampled ({output_mask_mrc_file_resampled}) must exist."
     
-    # resample the mask to the original map using chimera if refinement_mask is True
-    if args.refinement_mask:
-        os.system(f"chimera --nogui resample_chimera.py {inargs_parts} {output_mask_mrc_file} {output_mask_mrc_file_resampled}")
-    else:
-        # make symlink
-        os.symlink(output_mask_mrc_file, output_mask_mrc_file_resampled)
-
     print("Creating RELION_OUTPUT_NODES star file ...")
     # relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"),"w+")
     relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"), "w")

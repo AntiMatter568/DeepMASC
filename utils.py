@@ -1,5 +1,6 @@
 import asyncio
 import os
+import subprocess
 
 
 async def run_subprocess(cmd, env=None, cwd=None):
@@ -38,4 +39,55 @@ async def run_subprocess(cmd, env=None, cwd=None):
 
     # Wait for the subprocess to finish
     await proc.wait()
+    return proc.returncode
+
+
+def run_subprocess_realtime(cmd, timeout=None):
+    """
+    Run subprocess with real-time output without using asyncio.
+    This avoids event loop conflicts while still providing live output.
+    """
+    import time
+    
+    env = dict(os.environ, PYTHONUNBUFFERED="1")
+    
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # Merge stderr into stdout
+        universal_newlines=True,
+        bufsize=1,  # Line buffered
+        env=env
+    )
+    
+    start_time = time.time()
+    
+    # Read output line by line in real-time
+    while True:
+        # Check timeout
+        if timeout and (time.time() - start_time) > timeout:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            raise subprocess.TimeoutExpired(cmd, timeout)
+        
+        # Read line with timeout
+        line = proc.stdout.readline()
+        if line:
+            print(line.strip(), flush=True)
+        elif proc.poll() is not None:
+            # Process has finished
+            break
+        else:
+            # No output yet, wait a bit
+            time.sleep(0.1)
+    
+    # Get any remaining output
+    remaining_output = proc.stdout.read()
+    if remaining_output:
+        print(remaining_output.strip(), flush=True)
+    
     return proc.returncode

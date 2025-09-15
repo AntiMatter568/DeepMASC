@@ -42,8 +42,8 @@ def save_LDP_map(save_map_path,LDP_array,origin_map_path):
         mrc_new.header.maps = mrc.header.maps
         mrc_new.header.origin = orig
         mrc_new.update_header_stats()
-        mrc.print_header()
-        mrc_new.print_header()
+        # mrc.print_header()
+        # mrc_new.print_header()
         mrc_new.close()
         del data_new
 
