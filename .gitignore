@@ -161,7 +161,6 @@ cython_debug/
 
 CryoREAD_Predict_Result/
 output_test/
-examples/
 Tutorial5.0/
 test_outdir/
 test_cryoread_26363/

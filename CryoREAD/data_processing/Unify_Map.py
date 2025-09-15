@@ -29,6 +29,10 @@ def Unify_Map(input_map_path, new_map_path):
     if np.sum(origin) == 0:
         origin = origin + nstart * voxel_size
 
+    # Create directory if it doesn't exist
+    new_map_dir = Path(new_map_path).parent
+    new_map_dir.mkdir(parents=True, exist_ok=True)
+    
     # Save the unified map
     mrc_new = mrcfile.new(new_map_path, data=data, overwrite=True)
     (mrc_new.header.origin.x, mrc_new.header.origin.y, mrc_new.header.origin.z) = origin
