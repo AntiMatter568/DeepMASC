@@ -83,6 +83,41 @@ After setting up the conda environment, you need to configure the `config.py` fi
    # Update this line with your actual conda environment path
    CONDA_PYTHON_PATH = "/path/to/your/conda/envs/DeepMASC/bin/python"
    ```
+
+### Install UCSF Chimera (Required):
+
+UCSF Chimera is required for map resampling functionality in AutoContour and map visualization.
+
+**Installation Options:**
+
+1. **Download and install from official website:**
+   - Visit: https://www.cgl.ucsf.edu/chimera/download.html
+   - Download the appropriate version for your operating system
+   - Follow the installation instructions for your platform
+
+2. **For Linux users:**
+   - Download the Linux version from the official website
+   - Make the downloaded file executable and run the installer:
+   ```bash
+   # After downloading the .bin file from the website
+   chmod +x chimera-*.bin
+   ./chimera-*.bin
+   ```
+
+3. **Verify installation:**
+   ```bash
+   # Test that chimera command is available
+   chimera --version
+   
+   # Test nogui mode (used by DeepMASC scripts)
+   chimera --nogui --help
+   ```
+
+**Note:** 
+- Chimera is **required** for AutoContour resampling functionality
+- Make sure the `chimera` command is available in your system PATH
+- DeepMASC will fail if Chimera is not properly installed when using AutoContour features
+
 </details>
 
 # AutoClass3D

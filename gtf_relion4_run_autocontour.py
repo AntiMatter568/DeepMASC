@@ -175,6 +175,15 @@ if __name__ == "__main__":
     output_mask_mrc_file = os.path.join(outargs_rpath, "prot_mask_final.mrc")
     assert os.path.exists(output_mask_mrc_file), f"# Logical Error: Output Mask MRC file ({output_mask_mrc_file}) must exist."
 
+    output_mask_mrc_file_resampled = os.path.join(outargs_rpath, "prot_mask_final_resampled.mrc")
+    
+    # resample the mask to the original map using chimera if refinement_mask is True
+    if args.refinement_mask:
+        os.system(f"chimera --nogui resample_chimera.py {inargs_parts} {output_mask_mrc_file} {output_mask_mrc_file_resampled}")
+    else:
+        # make symlink
+        os.symlink(output_mask_mrc_file, output_mask_mrc_file_resampled)
+
     print("Creating RELION_OUTPUT_NODES star file ...")
     # relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"),"w+")
     relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"), "w")
@@ -189,7 +198,7 @@ if __name__ == "__main__":
     # relion_output_nodes_star_file.write(
     #     "{} ParticlesData.star.relion \n".format(os.path.join(outargs_rpath, output_selected_data_star_file_basename))
     # )
-    relion_output_nodes_star_file.write("{} DensityMap.mrc \n".format(os.path.join(outargs_rpath, output_mask_mrc_file)))
+    relion_output_nodes_star_file.write("{} DensityMap.mrc \n".format(os.path.join(outargs_rpath, output_mask_mrc_file_resampled)))
     # relion_output_nodes_star_file.write(logfile+" 13")
     relion_output_nodes_star_file.write("\n")
     relion_output_nodes_star_file.close()
