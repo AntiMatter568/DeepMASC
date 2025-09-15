@@ -192,6 +192,33 @@ for sort_entry_list in sort_table:
     i_sort_table += 1
 print("")
 
+# Filter out maps with estimated resolution > 30 Å
+resolution_threshold = 30.0
+filtered_sort_table = []
+excluded_maps = []
+
+for sort_entry_list in sort_table:
+    estimated_res = float(sort_entry_list[idx_class3d_estimated_res])
+    if estimated_res <= resolution_threshold:
+        filtered_sort_table.append(sort_entry_list)
+    else:
+        excluded_maps.append(sort_entry_list)
+        print(f"[GTF_DEBUG] Excluding map {sort_entry_list[idx_class3d_map_dir_rpath]} with resolution {estimated_res:.2f} Å (> {resolution_threshold} Å)")
+
+if excluded_maps:
+    print(f"[GTF_DEBUG] Excluded {len(excluded_maps)} map(s) due to resolution threshold")
+else:
+    print(f"[GTF_DEBUG] No maps excluded by resolution threshold")
+
+if not filtered_sort_table:
+    print(f"[GTF_ERROR] No maps remain after applying resolution threshold of {resolution_threshold} Å. Exiting.")
+    exit(1)
+
+# Update sort_table to use filtered results
+sort_table = filtered_sort_table
+print(f"[GTF_DEBUG] Proceeding with {len(sort_table)} map(s) after resolution filtering")
+print("")
+
 # CryoREAD
 CURR_SCRIPT_PATH = Path(__file__).absolute().parent
 FINAL_OUTDIR = os.path.abspath(outargs_rpath)
