@@ -5,8 +5,8 @@ A deep learning based tool to automatically select the best reconstructed 3D map
 ## Example Data
 
 The repository includes example data in the `examples/` folder:
-- `examples/job015/`: InitialModel job output with `initial_model.mrc` 
-- `examples/job016/`: Class3D job output with 4 classes (`run_it025_class001.mrc` through `run_it025_class004.mrc`) and particle data (`run_it025_data.star`)
+- `examples/InitialModel/job015/`: InitialModel job output with `initial_model.mrc` 
+- `examples/Class3D/job016/`: Class3D job output with 4 classes (`run_it025_class001.mrc` through `run_it025_class004.mrc`) and particle data (`run_it025_data.star`)
 
 These examples can be used to test the functionality of DeepMASC without requiring your own data.
 
@@ -54,12 +54,14 @@ conda env create -f environment.yml
 mamba env create -f environment.yml
 ```
 
-### Activate the environment:
+### Activate the environment (optional):
 
 ```bash
-conda activate DeepMASC
+# Optional: You can activate the environment if you prefer
+# conda activate DeepMASC
 
 # Note: Environment activation is the same for both conda and mamba
+# Alternatively, you can use the direct Python path as shown in examples
 ```
 
 ### Configure config.py:
@@ -71,9 +73,9 @@ After setting up the conda environment, you need to configure the `config.py` fi
    # Method 1: Using conda info
    conda info --envs
    
-   # Method 2: Activate environment and check Python path
-   conda activate DeepMASC
-   which python
+   # Method 2: Check Python path after activating environment
+   # conda activate DeepMASC
+   # which python
    ```
 
 2. **Edit config.py file:**
@@ -128,18 +130,11 @@ UCSF Chimera is required for map resampling functionality in AutoContour and map
 
 ### Basic Usage
 
-If you are in the repo directory:
 ```bash
 conda activate DeepMASC
 PYTHONNOUSERSITE=1 python main.py
 ```
 
-If you want to run from arbitrary directory:
-```bash
-conda activate DeepMASC
-cd /path/to/DeepMASC/repo
-PYTHONNOUSERSITE=1 python main.py
-```
 
 ### Alternative: Using Direct Python Path (No Activation Required)
 
@@ -185,30 +180,14 @@ For example:
 
 ### Examples
 
-**Method 1: With environment activation**
 ```bash
-conda activate DeepMASC
-cd /path/to/DeepMASC/repo
-PYTHONNOUSERSITE=1 python main.py -f examples/job016/run_it025_class001.mrc examples/job016/run_it025_class002.mrc examples/job016/run_it025_class003.mrc examples/job016/run_it025_class004.mrc -g 0 -o output_autoselectclass
-```
-
-**Method 2: Direct Python path (no activation needed)**
-```bash
-cd /path/to/DeepMASC/repo
-PYTHONNOUSERSITE=1 ~/miniconda3/envs/DeepMASC/bin/python main.py -f examples/job016/run_it025_class001.mrc examples/job016/run_it025_class002.mrc examples/job016/run_it025_class003.mrc examples/job016/run_it025_class004.mrc -g 0 -o output_autoselectclass
+PYTHONNOUSERSITE=1 python main.py -f examples/Class3D/job016/run_it025_class???.mrc -g 0 -o output_autoselectclass
 ```
 
 **Using your own data:**
 ```bash
-# Method 1: With activation
-conda activate DeepMASC
-cd /path/to/DeepMASC/repo
 PYTHONNOUSERSITE=1 python main.py -f /path/to/your/class1.mrc /path/to/your/class2.mrc /path/to/your/class3.mrc -g 0,1,2 -o /path/to/output/dir
 
-# Method 2: Direct Python path
-cd /path/to/DeepMASC/repo
-PYTHONNOUSERSITE=1 ~/miniconda3/envs/DeepMASC/bin/python main.py -f /path/to/your/class1.mrc /path/to/your/class2.mrc /path/to/your/class3.mrc -g 0,1,2 -o /path/to/output/dir
-```
 
 </details>
 
@@ -246,7 +225,7 @@ There are three files associated with RELION integration of AutoSelect3D:
    - **External Executable**: `python /path/to/gtf_relion4_run_select_class3d.py`
 
 2. In the "Input" tab:
-   - In "Input particles" box, enter the path to the input data star file like `Class3D/job016/run_it025_data.star` (using the provided example) or your own `Class3D/jobXXX/run_it025_data.star`.
+   - In "Input particles" box, enter the path to the input data star file like `examples/Class3D/job016/run_it025_data.star` (using the provided example) or your own `Class3D/jobXXX/run_it025_data.star`.
 
 3. In the "Params" tab, you can set the following parameters:
    - `gpus`: GPU IDs to use for CryoREAD prediction (required), e.g., `0` or `0,1,2`
@@ -308,15 +287,11 @@ There are three files associated with RELION integration of AutoSelect3D:
 
 Using the provided example data:
 ```bash
-conda activate DeepMASC
-cd /path/to/DeepMASC/repo
-PYTHONNOUSERSITE=1 python contour.py -i examples/job016/run_it025_class001.mrc -o output_autocontour_gmm -g 0 -p
+PYTHONNOUSERSITE=1 python contour.py -i examples/Class3D/job016/run_it025_class001.mrc -o output_autocontour_gmm -g 0 -p
 ```
 
 Using your own data:
 ```bash
-conda activate DeepMASC
-cd /path/to/DeepMASC/repo
 PYTHONNOUSERSITE=1 python contour.py -i /path/to/your/map.mrc -o output_folder -g 0 -p
 ```
 
@@ -324,15 +299,11 @@ PYTHONNOUSERSITE=1 python contour.py -i /path/to/your/map.mrc -o output_folder -
 
 Using the provided example data:
 ```bash
-conda activate DeepMASC
-cd /path/to/DeepMASC/repo
-PYTHONNOUSERSITE=1 python contour.py -i examples/job016/run_it025_class001.mrc -o output_autocontour_cryoread -g 0 -p -r -b 16
+PYTHONNOUSERSITE=1 python contour.py -i examples/Class3D/job016/run_it025_class001.mrc -o output_autocontour_cryoread -g 0 -p -r -b 16
 ```
 
 Using your own data:
 ```bash
-conda activate DeepMASC
-cd /path/to/DeepMASC/repo
 PYTHONNOUSERSITE=1 python contour.py -i /path/to/your/map.mrc -o output_folder -g 0 -p -r -b 16
 ```
 
@@ -444,10 +415,9 @@ conda env update -f environment.yml
 ### Running from Different Directories
 
 To run DeepMASC from any directory:
-1. Activate the conda environment: `conda activate DeepMASC`
-2. Navigate to the DeepMASC repository directory: `cd /path/to/DeepMASC`
-3. Run the scripts as shown in the examples above
-4. Use relative or absolute paths for input/output files as needed
+1. Navigate to the DeepMASC repository directory
+2. Run the scripts as shown in the examples above
+3. Use relative or absolute paths for input/output files as needed
 
 ### Finding Your Conda Environment Path
 
@@ -460,9 +430,9 @@ conda info --envs
 # Find the specific Python path for DeepMASC environment
 conda info --envs | grep DeepMASC
 
-# Alternative: activate environment and check Python path
-conda activate DeepMASC
-which python
+# Alternative: check Python path after activating environment
+# conda activate DeepMASC
+# which python
 ```
 
 Common conda installation paths:
