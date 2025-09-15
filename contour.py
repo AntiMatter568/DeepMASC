@@ -400,7 +400,7 @@ if __name__ == "__main__":
         final_out_mask_path_resampled = os.path.join(output_folder, "prot_mask_final_resampled.mrc")
         
         resample_script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resample_chimera.py")
-        cmd = ["chimera", "--nogui", resample_script_path, input_map_path, final_out_mask_path, final_out_mask_path_resampled]
+        cmd = ["chimera", "--nogui", resample_script_path, final_out_mask_path, input_map_path, final_out_mask_path_resampled]
         logger.info(f"Running chimera resampling command: {' '.join(cmd)}")
         try:
             exit_code = run_subprocess_realtime(cmd, timeout=300)  # 5 minutes timeout for Chimera
