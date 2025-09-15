@@ -51,8 +51,6 @@ if __name__ == "__main__":
     output_path = os.path.abspath(args.output)
     os.makedirs(args.output, exist_ok=True)
 
-    logger.add("DeepMASC_AutoSelectClass.log")
-
     # Determine resolution of model to use
     reso_input = 8.0 if args.reso == "Low" else 2.0
 
