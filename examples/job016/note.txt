@@ -1,5 +1,0 @@
-
- ++++ Executing new job on Thu Oct 19 12:37:03 2023
- ++++ with the following command(s): 
-`which relion_refine_mpi` --o Class3D/job016/run --i Select/job014/particles.star --ref InitialModel/job015/initial_model.mrc --ini_high 50 --dont_combine_weights_via_disc --preread_images  --pool 30 --pad 1  --ctf --iter 25 --tau2_fudge 4 --particle_diameter 200 --blush  --K 4 --flatten_solvent --zero_mask --oversampling 1 --healpix_order 2 --offset_range 5 --offset_step 2 --sym C1 --norm --scale  --j 6 --gpu "0:1:2:3"  --pipeline_control Class3D/job016/
- ++++ 
