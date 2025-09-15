@@ -246,7 +246,7 @@ There are three files associated with RELION integration of AutoSelect3D:
    - **External Executable**: `python /path/to/gtf_relion4_run_select_class3d.py`
 
 2. In the "Input" tab:
-   - In "Input Particles" box, enter the path to the input data star file like `Class3D/job016/run_it025_data.star` (using the provided example) or your own `Class3D/jobXXX/run_it025_data.star`.
+   - In "Input particles" box, enter the path to the input data star file like `Class3D/job016/run_it025_data.star` (using the provided example) or your own `Class3D/jobXXX/run_it025_data.star`.
 
 3. In the "Params" tab, you can set the following parameters:
    - `gpus`: GPU IDs to use for CryoREAD prediction (required), e.g., `0` or `0,1,2`
@@ -354,7 +354,7 @@ There is one file associated with RELION integration of AutoContour:
    - **External Executable**: `python /path/to/gtf_relion4_run_autocontour.py`
 
 2. In the "Input" tab:
-   - In "Reference map" box, select the map file you want to generate a mask for.
+   - In "Input 3D reference" box, select the map file you want to generate a mask for.
 
 3. In the "Params" tab, you can set the following parameters:
    - `gpus`: GPU IDs to use for CryoREAD prediction (required), e.g., `0` or `0,1`
