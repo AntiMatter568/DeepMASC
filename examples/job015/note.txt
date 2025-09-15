@@ -1,0 +1,8 @@
+
+ ++++ Executing new job on Thu Oct 19 11:46:25 2023
+ ++++ with the following command(s): 
+`which relion_refine` --o InitialModel/job015/run --iter 100 --grad --denovo_3dref  --i Select/job014/particles.star --ctf --K 1 --sym C1  --flatten_solvent  --zero_mask  --dont_combine_weights_via_disc --pool 3 --pad 1  --particle_diameter 200 --oversampling 1  --healpix_order 1  --offset_range 6  --offset_step 2 --auto_sampling  --tau2_fudge 4 --j 12 --gpu "0,1,2,3"  --pipeline_control InitialModel/job015/
+rm -f InitialModel/job015/RELION_JOB_EXIT_SUCCESS
+`which relion_align_symmetry` --i InitialModel/job015/run_it100_model.star --o InitialModel/job015/initial_model.mrc --sym D2 --apply_sym --select_largest_class  --pipeline_control InitialModel/job015/
+touch InitialModel/job015/RELION_JOB_EXIT_SUCCESS
+ ++++ 

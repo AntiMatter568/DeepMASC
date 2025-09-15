@@ -1,0 +1,20 @@
+ Expectation iteration 24 of 25
+   3/   3 sec ............................................................~~(,_,">
+ Maximization (with Blush regularization)...
+  24/  24 sec ............................................................~~(,_,">
+ Estimating accuracies in the orientational assignment ... 
+   0/   0 sec ............................................................~~(,_,">
+ Auto-refine: Estimated accuracy angles= 3.925 degrees; offsets= 2.36118 Angstroms
+ CurrentResolution= 12.5867 Angstroms, which requires orientationSampling of at least 7.2 degrees for a particle of diameter 200 Angstroms
+ Oversampling= 0 NrHiddenVariableSamplingPoints= 387072
+ OrientationalSampling= 15 NrOrientations= 4608
+ TranslationalSampling= 7.08 NrTranslations= 21
+=============================
+ Oversampling= 1 NrHiddenVariableSamplingPoints= 12386304
+ OrientationalSampling= 7.5 NrOrientations= 36864
+ TranslationalSampling= 3.54 NrTranslations= 84
+=============================
+ Expectation iteration 25 of 25
+   3/   3 sec ............................................................~~(,_,">
+ Maximization (with Blush regularization)...
+  23/  23 sec ............................................................~~(,_,">

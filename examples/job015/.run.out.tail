@@ -1,0 +1,20 @@
+   0/   0 sec ............................................................~~(,_,">
+ Reading map: InitialModel/job015/run_it100_class001.mrc
+ The input box size: 64
+ Using the pixel size in the input image header: 3.54 A/px
+ Center of mass: x= 0.174423 y= 0.0267854 z= 0.0648986
+ Re-centred to the centre of the mass
+ Downsampled to the working box size 64 px. This corresponds to 3.54 A/px.
+ Generating 400 projections taken randomly from a uniform angular distribution.
+ Searching globally ...
+  11/  11 sec ............................................................~~(,_,">
+ The best solution is ROT = 268.24 TILT = 76.1293 PSI = 126.363
+
+ Refining locally ...
+   3/   3 sec ............................................................~~(,_,">
+ The refined solution is ROT = 264.24 TILT = 80.1293 PSI = 126.363 DIFF2= 30.8158
+
+ Now rotating the original (full size) volume ...
+
+ The aligned map has been written to InitialModel/job015/initial_model.mrc
+ done!
