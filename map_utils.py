@@ -133,7 +133,7 @@ def symmetrize_ht(ht):
     return sym_ht
 
 
-def calculate_fsc(vol1_f, vol2_f, Apix=1.0, output_f=None):
+def calculate_fsc(vol1_f, vol2_f, output_f, Apix=1.0, plot=True):
 
     import mrcfile
 
@@ -189,11 +189,71 @@ def calculate_fsc(vol1_f, vol2_f, Apix=1.0, output_f=None):
         pass
 
     w = np.where(fsc < 0.5)
-    if w:
-        cutoff_05 = 1 / x[w[0][0]] * Apix
+    cutoff_05 = 1 / x[w[0][0]] * Apix if len(w) > 0 and len(w[0]) > 0 else None
 
+    if cutoff_05 is None:
+        cutoff_05 = 0.0
+    
     w = np.where(fsc < 0.143)
-    if w:
-        cutoff_0143 = 1 / x[w[0][0]] * Apix
+    cutoff_0143 = 1 / x[w[0][0]] * Apix if len(w) > 0 and len(w[0]) > 0 else None
 
+    if cutoff_0143 is None:
+        cutoff_0143 = 0.0
+
+    # Visualization
+    if plot:
+        import matplotlib.pyplot as plt
+        
+        # Convert spatial frequency to resolution in Angstroms
+        resolution = 1 / (x * Apix + 1e-10)  # Add small epsilon to avoid division by zero
+        resolution[0] = np.inf  # Set DC component to infinity
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(x[1:], fsc[1:], 'b-', linewidth=2, label='FSC')
+        plt.axhline(y=0.5, color='r', linestyle='--', alpha=0.7, label='FSC = 0.5')
+        plt.axhline(y=0.143, color='orange', linestyle='--', alpha=0.7, label='FSC = 0.143')
+        
+        # Mark resolution cutoffs
+        if cutoff_05 > 0:
+            plt.axvline(x=1/(cutoff_05/Apix), color='r', linestyle=':', alpha=0.7)
+            plt.text(1/(cutoff_05/Apix), 0.52, f'{cutoff_05:.1f}Å', 
+                    rotation=90, verticalalignment='bottom', color='r')
+        
+        if cutoff_0143 > 0:
+            plt.axvline(x=1/(cutoff_0143/Apix), color='orange', linestyle=':', alpha=0.7)
+            plt.text(1/(cutoff_0143/Apix), 0.15, f'{cutoff_0143:.1f}Å', 
+                    rotation=90, verticalalignment='bottom', color='orange')
+        
+        plt.xlabel('Spatial Frequency')
+        plt.ylabel('Fourier Shell Correlation')
+        plt.title('FSC Curve')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.ylim(-0.1, 1.1)
+        plt.xlim(0, x[-1])
+        
+        # Add secondary x-axis for resolution
+        ax1 = plt.gca()
+        ax2 = ax1.twiny()
+        
+        # Select reasonable tick positions
+        freq_ticks = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+        freq_ticks = freq_ticks[freq_ticks <= x[-1]]
+        res_ticks = 1 / (freq_ticks * Apix)
+        
+        ax2.set_xlim(ax1.get_xlim())
+        ax2.set_xticks(freq_ticks)
+        ax2.set_xticklabels([f'{r:.1f}' for r in res_ticks])
+        ax2.set_xlabel('Resolution (Å)')
+        
+        plt.tight_layout()
+        
+        # Generate plot filename based on output_f
+        import os
+        base_name = os.path.splitext(output_f)[0]
+        plot_filename = base_name + "_plot.png"
+        plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
+        plt.close()  # Close the figure to free memory
+        print(f"FSC plot saved to: {plot_filename}")
+    
     return x, fsc, cutoff_05, cutoff_0143
