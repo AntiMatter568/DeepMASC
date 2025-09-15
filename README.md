@@ -2,6 +2,14 @@
 
 A deep learning based tool to automatically select the best reconstructed 3D maps within a group of maps.
 
+## Example Data
+
+The repository includes example data in the `examples/` folder:
+- `examples/job015/`: InitialModel job output with `initial_model.mrc` 
+- `examples/job016/`: Class3D job output with 4 classes (`run_it025_class001.mrc` through `run_it025_class004.mrc`) and particle data (`run_it025_data.star`)
+
+These examples can be used to test the functionality of DeepMASC without requiring your own data.
+
 # Installation
 
 <details>
@@ -12,59 +20,161 @@ A deep learning based tool to automatically select the best reconstructed 3D map
 git clone https://github.com/AntiMatter568/DeepMASC
 ```
 
-### Install pixi:
+### Install conda/mamba:
 
+If you don't have conda or mamba installed, choose one of the following options:
+
+#### Option 1: Miniconda (Recommended)
 ```bash
-curl -fsSL https://pixi.sh/install.sh | bash
+# Download and install Miniconda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+# Follow the prompts and restart your terminal
 ```
 
-### Or if system-wide installation is wanted (replace /path/to/shared/folder with the path to your desired installation folder):
+#### Option 2: Miniforge (Community-driven, includes conda-forge by default + mamba)
 ```bash
-curl -fsSL https://pixi.sh/install.sh | PIXI_HOME=/path/to/shared/folder bash
+# Download and install Miniforge (includes both conda and mamba)
+wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh
+# Follow the prompts and restart your terminal
 ```
 
-### Create pixi environment:
+For other operating systems, visit:
+- [Miniconda Downloads](https://docs.conda.io/en/latest/miniconda.html)
+- [Miniforge Releases](https://github.com/conda-forge/miniforge/releases)
+
+### Create conda environment:
 
 ```bash
 cd <Your Installation Folder> # default is DeepMASC
-pixi install
+conda env create -f environment.yml
+
+# If using miniforge with mamba (faster alternative):
+mamba env create -f environment.yml
 ```
 
-Configure environment for shared usage:
+### Activate the environment:
 
 ```bash
-chmod -R 777 . # set permission to read, write and exec for all users
+conda activate DeepMASC
+
+# Note: Environment activation is the same for both conda and mamba
 ```
+
+### Configure config.py:
+
+After setting up the conda environment, you need to configure the `config.py` file to point to your conda environment's Python executable:
+
+1. **Find your conda environment's Python path:**
+   ```bash
+   # Method 1: Using conda info
+   conda info --envs
+   
+   # Method 2: Activate environment and check Python path
+   conda activate DeepMASC
+   which python
+   ```
+
+2. **Edit config.py file:**
+   Open `config.py` in the DeepMASC directory and update the `CONDA_PYTHON_PATH` variable:
+   
+   ```python
+   # Update this line with your actual conda environment path
+   CONDA_PYTHON_PATH = "/path/to/your/conda/envs/DeepMASC/bin/python"
+   ```
+
+### Install UCSF Chimera (Required):
+
+UCSF Chimera is required for map resampling functionality in AutoContour and map visualization.
+
+**Installation Options:**
+
+1. **Download and install from official website:**
+   - Visit: https://www.cgl.ucsf.edu/chimera/download.html
+   - Download the appropriate version for your operating system
+   - Follow the installation instructions for your platform
+
+2. **For Linux users:**
+   - Download the Linux version from the official website
+   - Make the downloaded file executable and run the installer:
+   ```bash
+   # After downloading the .bin file from the website
+   chmod +x chimera-*.bin
+   ./chimera-*.bin
+   ```
+
+3. **Verify installation:**
+   ```bash
+   # Test that chimera command is available
+   chimera --version
+   
+   # Test nogui mode (used by DeepMASC scripts)
+   chimera --nogui --help
+   ```
+
+**Note:** 
+- Chimera is **required** for AutoContour resampling functionality
+- Make sure the `chimera` command is available in your system PATH
+- DeepMASC will fail if Chimera is not properly installed when using AutoContour features
 
 </details>
 
 # AutoClass3D
 
-## AutoSelect3D Standalone Usage without RELION:
+## Standalone Usage
 
-### If you are in the repo directory
-```bash
-pixi run autoselectclass
-```
-
-### If you want to run from abitrary directory (replace /path/to/DeepMASC/repo/pixi.toml with the path to your pixi.toml file)
-```bash
-pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autoselectclass
-```
 <details>
 
-### Arguments for Class3D/InitialModel Selection
+### Basic Usage
+
+If you are in the repo directory:
+```bash
+conda activate DeepMASC
+PYTHONNOUSERSITE=1 python main.py
+```
+
+If you want to run from arbitrary directory:
+```bash
+conda activate DeepMASC
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 python main.py
+```
+
+### Alternative: Using Direct Python Path (No Activation Required)
+
+You can also run DeepMASC without activating the environment by using the direct path to the conda environment's Python interpreter:
+
+```bash
+# Find your conda/mamba environment path
+conda info --envs
+# OR if using mamba:
+mamba info --envs
+
+# Use the direct Python path (replace <CONDA_PATH> with your actual conda installation path)
+<CONDA_PATH>/envs/DeepMASC/bin/python main.py
+```
+
+For example:
+```bash
+# Common conda paths:
+# Miniconda: ~/miniconda3/envs/DeepMASC/bin/python main.py
+# Miniforge: ~/miniforge3/envs/DeepMASC/bin/python main.py
+# System conda: /opt/conda/envs/DeepMASC/bin/python main.py
+
+~/miniconda3/envs/DeepMASC/bin/python main.py -f examples/job016/run_it025_class001.mrc -g 0 -o output_test
+```
 
 ### Arguments
 
-Required Arguments:
-* `-f, --files`: List of input mrc files. Accepts multiple files separated by spaces. These are the MRC files that will be processed and selected. (If used from a different directory other than DeepMASC repo, the paths must be absolute)
+**Required Arguments:**
+* `-f, --files`: List of input mrc files. Accepts multiple files separated by spaces. These are the MRC files that will be processed and selected.
 
-* `-o, --output`: Output folder name. Directory where all output files will be stored. (If used from a different directory other than DeepMASC repo, the paths must be absolute)
+* `-o, --output`: Output folder name. Directory where all output files will be stored.
 
 * `-g, --gpus`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing. Multiple GPU IDs can be provided using a comma-separated list.
 
-Optional Arguments:
+**Optional Arguments:**
 * `--debug`: Enable debug mode to generate full output (default: False). When enabled, copy the full cryoREAD output to the output directory for debugging.
 
 * `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low", options are "Low" (>5Å) or "High" (<5Å)). Determines which model checkpoint will be used based on the desired resolution.
@@ -73,20 +183,42 @@ Optional Arguments:
 
 * `--dryrun`: When enabled, performs a dry run that only prints commands without actually executing CryoREAD. Useful for testing and verification.
 
+### Examples
 
-### Example for Class3D/InitialModel Selection
-
+**Method 1: With environment activation**
 ```bash
-pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autoselectclass -f /path/to/relion/project/Class3D/job052/class1.mrc /path/to/relion/project/Class3D/job052/class2.mrc /path/to/relion/project/Class3D/job052/class3.mrc -g 0,1,2 -o /path/to/output/dir
+conda activate DeepMASC
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 python main.py -f examples/job016/run_it025_class001.mrc examples/job016/run_it025_class002.mrc examples/job016/run_it025_class003.mrc examples/job016/run_it025_class004.mrc -g 0 -o output_autoselectclass
+```
+
+**Method 2: Direct Python path (no activation needed)**
+```bash
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 ~/miniconda3/envs/DeepMASC/bin/python main.py -f examples/job016/run_it025_class001.mrc examples/job016/run_it025_class002.mrc examples/job016/run_it025_class003.mrc examples/job016/run_it025_class004.mrc -g 0 -o output_autoselectclass
+```
+
+**Using your own data:**
+```bash
+# Method 1: With activation
+conda activate DeepMASC
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 python main.py -f /path/to/your/class1.mrc /path/to/your/class2.mrc /path/to/your/class3.mrc -g 0,1,2 -o /path/to/output/dir
+
+# Method 2: Direct Python path
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 ~/miniconda3/envs/DeepMASC/bin/python main.py -f /path/to/your/class1.mrc /path/to/your/class2.mrc /path/to/your/class3.mrc -g 0,1,2 -o /path/to/output/dir
 ```
 
 </details>
 
-## AutoSelect3D Usage with RELION GUI Integration:
+## RELION GUI Integration
 
 <details>
 
-### There are three files associated with RELION integration of AutoSelect3D:
+### Files
+
+There are three files associated with RELION integration of AutoSelect3D:
 
 - `gtf_relion4_run_select_class3d.py` <- **this is the main file to execute**
 - `gtf_relion4_create_select3d_data_star.py`
@@ -94,35 +226,45 @@ pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml a
 
 ### Arguments
 
-Required Arguments:
+**Required Arguments:**
 * `-i, --input, --in_parts`: Input particle star file path (relative). This star file should come from RELION InitialModel/Class3D run and is automatically generated by RELION.
 
 * `-o, --output`: Output job directory path (relative). This directory is automatically generated by RELION and will store all output files.
 
 * `-g, --gpus`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing. Multiple GPU IDs can be provided using a comma-separated list.
 
-Optional Arguments:
+**Optional Arguments:**
 * `--debug`: Enable debug mode to generate full output (default: False). When enabled, copy the full cryoREAD output to the output directory for debugging.
 
 * `-r, --reso`: Resolution setting to choose the deep learning model (default: "Low", options are "Low" (>5Å) or "High" (<5Å)). Determines which model checkpoint will be used based on the desired resolution.
 
 * `-b, --batch`: Batch size to use for CryoREAD prediction. Controls how many boxes are processed simultaneously during the prediction phase.
 
-### Example with RELION GUI
+### RELION GUI Setup Instructions
 
+1. From RELION GUI, Choose "External", then in "External Executable" box enter:
+   - **External Executable**: `python /path/to/gtf_relion4_run_select_class3d.py`
 
-1. From RELION GUI, Choose "External", then in "External Executable" box enter `python /path/to/gtf_relion4_run_select_class3d.py`.
-2. In the "Input" tab, in "Input Particles" box, enter the path to the input data star file like `Class3D/job052/run_it025_data.star`.
-3. In the Params tab, enter `gpus` in values box, then enter the gpus to use for inference like `0,1,2`. (required)
-4. In the Params tab, enter other optional parameters like `debug` (optional, true or false), `reso` (optional, Low(>5Å) or High(<5Å)), `batch` (optional, on modern GPU 8 and 16 works well).
-5. In the Running tab, the "Number of threads" box should be set to 1.
-6. Adjust your submission to queue setting accordingly if you use a managed queue job submission system.
-7. Click the "Run" button.
-8. Once the job is finished, the results will be stored in the output job directory created by RELION.
+2. In the "Input" tab:
+   - In "Input particles" box, enter the path to the input data star file like `Class3D/job016/run_it025_data.star` (using the provided example) or your own `Class3D/jobXXX/run_it025_data.star`.
+
+3. In the "Params" tab, you can set the following parameters:
+   - `gpus`: GPU IDs to use for CryoREAD prediction (required), e.g., `0` or `0,1,2`
+   - `debug`: Set to `True` to enable debug mode (optional)
+   - `reso`: Resolution setting (optional, Low(>5Å) or High(<5Å))
+   - `batch`: Batch size for CryoREAD prediction (optional, on modern GPU 8 and 16 works well)
+
+4. In the "Running" tab:
+   - Set "Number of threads" to 1
+   - Adjust your submission to queue settings if using a managed queue system
+
+5. Click the "Run" button to start the job.
+
+6. Once finished, the results will be stored in the output job directory created by RELION.
 
 </details>
 
-## List of Output Files:
+## List of Output Files
 
 <details>
 
@@ -138,15 +280,15 @@ Optional Arguments:
 
 # AutoContour
 
-## Arguments for Auto Contouring
-
-### Arguments
+## Standalone Usage
 
 <details>
 
+### Arguments
+
 **Required Arguments:**
-* `-i, --input_map_path`: Input MRC map file to determine the contour (If used from a different directory other than DeepMASC repo, the paths must be absolute)
-* `-o, --output_folder`: Output folder to store all the files (If used from a different directory other than DeepMASC repo, the paths must be absolute)
+* `-i, --input_map_path`: Input MRC map file to determine the contour
+* `-o, --output_folder`: Output folder to store all the files
 * `-g, --gpu_id`: GPU ID to use for CryoREAD prediction. Specifies which GPU device should be used for processing.
 
 **Optional Arguments:**
@@ -160,21 +302,83 @@ Optional Arguments:
 * `-c, --cutoff_prob`: The cutoff probability for the mask if using CryoREAD mask (default: 0.3)
 * `--debug`: Enable debug mode (default: False)
 
-## Example for GMM Auto Contouring for Rough Masking
+### Examples
 
+**GMM Auto Contouring for Rough Masking:**
+
+Using the provided example data:
 ```bash
-pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autocontour -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p
+conda activate DeepMASC
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 python contour.py -i examples/job016/run_it025_class001.mrc -o output_autocontour_gmm -g 0 -p
 ```
 
-## Example for CryoREAD Auto Refinement Masking
-
+Using your own data:
 ```bash
-pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml autocontour -i ./Class3D/job052/class1.mrc -o ./output_folder -g 0 -p -r -b 16
+conda activate DeepMASC
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 python contour.py -i /path/to/your/map.mrc -o output_folder -g 0 -p
+```
+
+**CryoREAD Auto Refinement Masking:**
+
+Using the provided example data:
+```bash
+conda activate DeepMASC
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 python contour.py -i examples/job016/run_it025_class001.mrc -o output_autocontour_cryoread -g 0 -p -r -b 16
+```
+
+Using your own data:
+```bash
+conda activate DeepMASC
+cd /path/to/DeepMASC/repo
+PYTHONNOUSERSITE=1 python contour.py -i /path/to/your/map.mrc -o output_folder -g 0 -p -r -b 16
 ```
 
 </details>
 
-### Mask Generation Process
+## RELION GUI Integration
+
+<details>
+
+### Files
+
+There is one file associated with RELION integration of AutoContour:
+
+- `gtf_relion4_run_autocontour.py` <- **this is the main file to execute**
+
+### RELION GUI Setup Instructions
+
+1. From RELION GUI, Choose "External", then in "External Executable" box enter:
+   - **External Executable**: `python /path/to/gtf_relion4_run_autocontour.py`
+
+2. In the "Input" tab:
+   - In "Input 3D reference" box, select the map file you want to generate a mask for.
+
+3. In the "Params" tab, you can set the following parameters:
+   - `gpus`: GPU IDs to use for CryoREAD prediction (required), e.g., `0` or `0,1`
+   - `plot_all`: Set to `True` to generate component plots (optional)
+   - `num_components`: Number of components for mixture model (optional, default: 2)
+   - `refinement_mask`: Set to `True` to use CryoREAD for fine-grained masking (optional)
+   - `batch_size`: Batch size for CryoREAD prediction (optional, default: 8)
+   - `morph_radius`: Radius for morphological operations (optional, default: 3)
+   - `mask_diameter`: Diameter of spherical mask in percentage (optional, default: 95)
+   - `aggressive`: Set to `True` for more aggressive masking (optional)
+   - `cutoff_prob`: Cutoff probability for CryoREAD mask (optional, default: 0.3)
+   - `debug`: Set to `True` to enable debug mode (optional)
+
+4. In the "Running" tab:
+   - Set "Number of threads" to 1
+   - Adjust your submission to queue settings if using a managed queue system
+
+5. Click the "Run" button to start the job.
+
+6. Once finished, the results will be stored in the output job directory created by RELION, containing all the output files listed in the previous section.
+
+</details>
+
+## Mask Generation Process
 
 <details>
 
@@ -187,10 +391,9 @@ pixi run --no-lockfile-update --manifest-path=/path/to/DeepMASC/repo/pixi.toml a
 7. The final binary mask is saved as "prot_mask_final.mrc", preserving original voxel dimensions and header metadata. If `--plot_all` is enabled, histograms for each component will be saved.
 8. (Optional) When `--refinement_mask` is used, the mask's contour level feeds into CryoREAD's neural network for detailed protein segmentation.
 
-
 </details>
 
-## List of Output Files:
+## List of Output Files
 
 <details>
 
@@ -216,39 +419,56 @@ When using --refinement_mask, additional files are generated:
 
 </details>
 
-## AutoContour Usage with RELION GUI Integration:
+
+## Additional Notes for Conda Usage
 
 <details>
 
-### There are three files associated with RELION integration of AutoContour:
+### Environment Management
 
-- `gtf_relion4_run_autocontour.py` <- **this is the main file to execute**
+To list all conda environments:
+```bash
+conda env list
+```
 
-### RELION GUI Setup Instructions
+To remove the DeepMASC environment (if needed):
+```bash
+conda env remove -n DeepMASC
+```
 
-1. From RELION GUI, Choose "External", then in "External Executable" box enter `python /path/to/gtf_relion4_run_autocontour.py`.
+To update the environment (if environment.yml is updated):
+```bash
+conda env update -f environment.yml
+```
 
-2. In the "Input" tab:
-   - In "Reference map" box, select the map file you want to generate a mask for.
+### Running from Different Directories
 
-3. In the "Params" tab, you can set the following parameters:
-   - `gpus`: GPU IDs to use for CryoREAD prediction (required), e.g., `0` or `0,1`
-   - `plot_all`: Set to `True` to generate component plots (optional)
-   - `num_components`: Number of components for mixture model (optional, default: 2)
-   - `refinement_mask`: Set to `True` to use CryoREAD for fine-grained masking (optional)
-   - `batch_size`: Batch size for CryoREAD prediction (optional, default: 8)
-   - `morph_radius`: Radius for morphological operations (optional, default: 3)
-   - `mask_diameter`: Diameter of spherical mask in percentage (optional, default: 95)
-   - `aggressive`: Set to `True` for more aggressive masking (optional)
-   - `cutoff_prob`: Cutoff probability for CryoREAD mask (optional, default: 0.3)
-   - `debug`: Set to `True` to enable debug mode (optional)
+To run DeepMASC from any directory:
+1. Activate the conda environment: `conda activate DeepMASC`
+2. Navigate to the DeepMASC repository directory: `cd /path/to/DeepMASC`
+3. Run the scripts as shown in the examples above
+4. Use relative or absolute paths for input/output files as needed
 
-4. In the Running tab:
-   - Set "Number of threads" to 1
-   - Adjust your submission to queue settings if using a managed queue system
+### Finding Your Conda Environment Path
 
-5. Click the "Run" button to start the job.
+To find the exact path to your conda environment's Python interpreter:
 
-6. Once finished, the results will be stored in the output job directory created by RELION, containing all the output files listed in the previous section.
+```bash
+# Find all conda environments and their paths
+conda info --envs
+
+# Find the specific Python path for DeepMASC environment
+conda info --envs | grep DeepMASC
+
+# Alternative: activate environment and check Python path
+conda activate DeepMASC
+which python
+```
+
+Common conda installation paths:
+- **Miniconda**: `~/miniconda3/envs/DeepMASC/bin/python`
+- **Miniforge**: `~/miniforge3/envs/DeepMASC/bin/python`
+- **System conda**: `/opt/conda/envs/DeepMASC/bin/python`
+- **Anaconda (if installed)**: `~/anaconda3/envs/DeepMASC/bin/python`
 
 </details>
