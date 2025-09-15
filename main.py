@@ -22,15 +22,9 @@ if __name__ == "__main__":
         help="List of input mrc files (supports wildcards like *.mrc)",
         required=True,
     )
-    parser.add_argument(
-        "-g", "--gpus", type=str, help="GPU ID to use for prediction", required=True
-    )
-    parser.add_argument(
-        "-o", "--output", type=str, help="Output folder name", required=True
-    )
-    parser.add_argument(
-        "-b", "--batch", type=int, help="Batch size to use", required=False, default=4
-    )
+    parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for prediction", required=True)
+    parser.add_argument("-o", "--output", type=str, help="Output folder name", required=True)
+    parser.add_argument("-b", "--batch", type=int, help="Batch size to use", required=False, default=4)
     parser.add_argument(
         "--debug",
         type=bool,
@@ -53,6 +47,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    logger.info("Output folder: ", args.output)
+    output_path = os.path.abspath(args.output)
     os.makedirs(args.output, exist_ok=True)
 
     logger.add("DeepMASC_AutoSelectClass.log")
@@ -92,12 +88,12 @@ if __name__ == "__main__":
     # run CryoREAD
 
     # make temp dir
-    temp_path = os.path.join(args.output, "temp")
+    temp_path = os.path.join(output_path, "temp")
     os.makedirs(temp_path, exist_ok=True)
     temp_dir = tempfile.TemporaryDirectory(dir=temp_path)
+    temp_dir_path = os.path.abspath(temp_dir.name)
 
     try:
-        temp_dir_name = temp_dir.name
         map_list = []
 
         for mrc_file in mrc_files:
@@ -106,7 +102,7 @@ if __name__ == "__main__":
                 map_list.append([mrc_file, 0.0, 0.0])  # real space CC, golden standard FSC, indicator for empty map
                 continue
             map_name = Path(mrc_file).stem.split(".")[0].strip()
-            curr_out_dir = os.path.join(temp_dir_name, map_name)
+            curr_out_dir = os.path.join(temp_dir_path, map_name)
 
             seg_map_path = curr_out_dir + "/input_segment.mrc"
             prot_prob_path = curr_out_dir + "/mask_protein.mrc"
@@ -139,7 +135,7 @@ if __name__ == "__main__":
                     stderr=subprocess.PIPE,
                     bufsize=1,
                     universal_newlines=True,
-                    env=dict(os.environ, PYTHONUNBUFFERED="1")  # Force Python subprocess to be unbuffered
+                    env=dict(os.environ, PYTHONUNBUFFERED="1"),  # Force Python subprocess to be unbuffered
                 )
 
                 # Read and print output
@@ -173,25 +169,34 @@ if __name__ == "__main__":
             map_list.append([mrc_file, real_space_cc, cutoff_05])
 
             if args.debug:
-                final_out_path = os.path.join(args.output, map_name)
+                final_out_path = os.path.join(output_path, map_name)
                 shutil.copytree(curr_out_dir, final_out_path)
             else:
                 # copyfiles to final output dir
-                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
-                            os.path.join(args.output, f"{map_name}_chain_base_prob.mrc"))
-                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
-                            os.path.join(args.output, f"{map_name}_chain_phosphate_prob.mrc"))
-                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
-                            os.path.join(args.output, f"{map_name}_chain_sugar_prob.mrc"))
-                shutil.copy(os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
-                            os.path.join(args.output, f"{map_name}_chain_protein_prob.mrc"))
-                shutil.copy(seg_map_path, os.path.join(args.output, f"{map_name}_segment.mrc"))
-                shutil.copy(prot_prob_path, os.path.join(args.output, f"{map_name}_mask_protein.mrc"))
-                shutil.copy(os.path.join(curr_out_dir, "CCC_FSC05.txt"), os.path.join(args.output, f"{map_name}_CCC_FSC05.txt"))
+                shutil.copy(
+                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
+                    os.path.join(output_path, f"{map_name}_chain_base_prob.mrc"),
+                )
+                shutil.copy(
+                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
+                    os.path.join(output_path, f"{map_name}_chain_phosphate_prob.mrc"),
+                )
+                shutil.copy(
+                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
+                    os.path.join(output_path, f"{map_name}_chain_sugar_prob.mrc"),
+                )
+                shutil.copy(
+                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
+                    os.path.join(output_path, f"{map_name}_chain_protein_prob.mrc"),
+                )
+                shutil.copy(seg_map_path, os.path.join(output_path, f"{map_name}_segment.mrc"))
+                shutil.copy(prot_prob_path, os.path.join(output_path, f"{map_name}_mask_protein.mrc"))
+                shutil.copy(os.path.join(curr_out_dir, "CCC_FSC05.txt"), os.path.join(output_path, f"{map_name}_CCC_FSC05.txt"))
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         logger.error("Stack trace:", exc_info=True)
+
     finally:
         temp_dir.cleanup()
 
