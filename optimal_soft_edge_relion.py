@@ -146,14 +146,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create soft edge masks for .mrc files.")
     parser.add_argument("-i", "--input_map_path", type=str, required=True, help="The input .mrc binary mask map file path")
     parser.add_argument("-o", "--output_folder", type=str, required=True, help="The output folder")
-    parser.add_argument("-e", "--extend_inimask", type=str, default="2", help="Extend initial mask values (comma-separated for grid search, e.g., '1,2,3'), default is '2'")
+    parser.add_argument("-e", "--extend_inimask", type=str, default="0,2,3,4", help="Extend initial mask values (comma-separated for grid search, e.g., '1,2,3'), default is '2'")
     parser.add_argument("--half_map", type=str, required=True, help="Path to the half map for postprocessing")
     parser.add_argument(
         "-j", "--n_threads", type=int, default=os.cpu_count(), help="The number of threads to use, default is the number of all CPU cores"
     )
     parser.add_argument(
-        "-s", "--soft_edge_widths", type=str, default="5,10,15,20,25,30", 
-        help="Soft edge width values (comma-separated for grid search, e.g., '5,10,15'), default is '5,10,15,20,25,30'"
+        "-s", "--soft_edge_widths", type=str, default="5,10,15,20,25", 
+        help="Soft edge width values (comma-separated for grid search, e.g., '5,10,15'), default is '5,10,15,20,25'"
     )
     args = parser.parse_args()
 
@@ -261,7 +261,7 @@ if __name__ == "__main__":
                 except Exception as e:
                     print(f"Error evaluating mask for extend_inimask {extend_inimask}, soft edge width {soft_edge_width}: {e}")
             else:
-                print(f"Warning: Star file not found: {star_file}")
+                print(f"Warning: Star file not found for extend_inimask {extend_inimask}, soft edge width {soft_edge_width}: {star_file}")
 
     print("\nProcessing complete!")
     
