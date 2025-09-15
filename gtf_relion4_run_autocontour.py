@@ -16,6 +16,7 @@ from pathlib import Path
 from glob import glob
 from utils import run_subprocess
 import asyncio
+from config import CONDA_PYTHON_PATH
 
 if __name__ == "__main__":
 
@@ -63,8 +64,7 @@ if __name__ == "__main__":
     print("[GTF_DEBUG] inargs_parts      : %s" % inargs_parts)
     print("[GTF_DEBUG] outargs_rpath     : %s" % outargs_rpath)
     print("[GTF_DEBUG] gpu_ids          : %s" % gpu_ids)
-    ## print('[GTF_DEBUG] model_star_rpath  : %s' % model_star_rpath)
-    ### print('[GTF_DEBUG] script_repo_fpath : %s' % script_repo_fpath)
+    print("[GTF_DEBUG] python interpreter path : %s" % CONDA_PYTHON_PATH)
 
     # Define constants
     ### cryolo_predict_exe = 'cryolo_predict.py'
@@ -113,10 +113,38 @@ if __name__ == "__main__":
     os.chdir(CURR_SCRIPT_PATH)
 
     """AutoContour >>>"""
+    # cmd = [
+    #     "pixi",
+    #     "run",
+    #     "autocontour",
+    #     f"--input_map_path={inargs_parts}",
+    #     f"--output_folder={outargs_rpath}",
+    #     f"--gpu={gpu_ids}",
+    #     f"--batch_size={batch_size}",
+    #     f"--num_components={args.num_components}",
+    #     f"--morph_radius={args.morph_radius}",
+    #     f"--mask_diameter={args.mask_diameter}",
+    # ]
+    
+    # cmd = [
+    #     "conda",
+    #     "run",
+    #     "-n",
+    #     "DeepMASC",
+    #     "python",
+    #     os.path.abspath(str(CURR_SCRIPT_PATH / "contour.py")),
+    #     f"--input_map_path={inargs_parts}",
+    #     f"--output_folder={outargs_rpath}",
+    #     f"--gpu={gpu_ids}",
+    #     f"--batch_size={batch_size}",
+    #     f"--num_components={args.num_components}",
+    #     f"--morph_radius={args.morph_radius}",
+    #     f"--mask_diameter={args.mask_diameter}",
+    # ]
+    
     cmd = [
-        "pixi",
-        "run",
-        "autocontour",
+        CONDA_PYTHON_PATH,
+        os.path.abspath(str(CURR_SCRIPT_PATH / "contour.py")),
         f"--input_map_path={inargs_parts}",
         f"--output_folder={outargs_rpath}",
         f"--gpu={gpu_ids}",
@@ -125,6 +153,7 @@ if __name__ == "__main__":
         f"--morph_radius={args.morph_radius}",
         f"--mask_diameter={args.mask_diameter}",
     ]
+
 
     if args.refinement_mask:
         cmd.append("--refinement_mask")

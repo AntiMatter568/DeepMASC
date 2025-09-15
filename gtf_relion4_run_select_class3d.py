@@ -70,8 +70,11 @@ import pprint
 from pathlib import Path
 from utils import run_subprocess
 import asyncio
+from config import CONDA_PYTHON_PATH
 
 """<<< Import"""
+
+"""<<< FUNCTIONS"""
 
 """USAGE >>>"""
 print("This script runs Class3D Selection from RELION Model STAR file in AWS GoToCloud Enviroment")
@@ -106,12 +109,11 @@ invalid_str = "GTF_INVALID_STR"
 print("[GTF_DEBUG] inargs_parts      : %s" % inargs_parts)
 print("[GTF_DEBUG] outargs_rpath     : %s" % outargs_rpath)
 print("[GTF_DEBUG] gpu_ids          : %s" % gpu_ids)
-## print('[GTF_DEBUG] model_star_rpath  : %s' % model_star_rpath)
-### print('[GTF_DEBUG] script_repo_fpath : %s' % script_repo_fpath)
-
-# Define constants
-### cryolo_predict_exe = 'cryolo_predict.py'
-### print('[GTF_DEBUG] cryolo_predict_exe             : %s' % cryolo_predict_exe)
+print("[GTF_DEBUG] batch size       : %s" % batch_size)
+print("[GTF_DEBUG] reso input       : %s" % reso_input)
+print("[GTF_DEBUG] debug mode       : %s" % args.debug)
+print("[GTF_DEBUG] sys.executable   : %s" % sys.executable)
+print("[GTF_DEBUG] conda python path : %s" % CONDA_PYTHON_PATH)
 
 # For Class3D Model Classes (class3d) parameters file format as defined in gtf_relion4_select3d
 i_enum = -1
@@ -160,6 +162,7 @@ print("[GTF_DEBUG] input_model_star_rpath          : %s" % input_model_star_rpat
 assert os.path.exists(input_model_star_rpath), "# Logical Error: Input RELION DATA STAR file must exits."
 
 import gtf_relion4_select3d
+from gtf_relion4_select3d import is_map_empty
 
 # check if the job is InitialModel or Class3D
 if "InitialModel" in input_job_dir_rpath:
@@ -222,9 +225,8 @@ print("")
 # CryoREAD
 CURR_SCRIPT_PATH = Path(__file__).absolute().parent
 FINAL_OUTDIR = os.path.abspath(outargs_rpath)
-TEMP_CURR_DIR = os.getcwd()
 input_job_dir_rpath_abs = os.path.abspath(input_job_dir_rpath)
-os.chdir(CURR_SCRIPT_PATH / "CryoREAD")
+CRYOREAD_PATH = CURR_SCRIPT_PATH / "CryoREAD"
 result_list_cryoREAD = []
 
 # Create the temp directory if it doesn't exist
@@ -232,24 +234,61 @@ temp_base_dir = os.path.join(outargs_rpath, "temp")
 os.makedirs(temp_base_dir, exist_ok=True)
 
 temp_dir = tempfile.TemporaryDirectory(dir=temp_base_dir)
+temp_dir = os.path.abspath(temp_dir.name)
 try:
-    temp_dir_name = temp_dir.name
-    print("[GTF_DEBUG] Created temporary directory", temp_dir_name)
+    print("[GTF_DEBUG] Created temporary directory", temp_dir)
 
     for sort_entry_list in sort_table:
         mrc_file = os.path.join(input_job_dir_rpath_abs, sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
+        # absolute path
+        mrc_file = os.path.abspath(mrc_file)
+        class_id = int(sort_entry_list[idx_class3d_gtc_class3d_id])
+        
+        # Check if the map is empty before processing
+        if is_map_empty(mrc_file):
+            print(f"[GTF_WARNING] Empty map found, skipping {mrc_file}")
+            result_list_cryoREAD.append([class_id, mrc_file, 0.0, 0.0])  # class_id, mrc_file, real_space_cc, cutoff_05
+            continue
+        
         print("[GTF_DEBUG] Running CryoREAD on mrc_file : ", mrc_file)
         map_name = Path(mrc_file).stem.split(".")[0].strip()
-        curr_out_dir = os.path.join(temp_dir.name, map_name)
+        curr_out_dir = os.path.join(temp_dir, map_name)
         print("[GTF_DEBUG] curr_out_dir : ", curr_out_dir)
         os.makedirs(curr_out_dir, exist_ok=True)
-        class_id = int(sort_entry_list[idx_class3d_gtc_class3d_id])
         seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
         prot_prob_path = os.path.join(curr_out_dir, "mask_protein.mrc")
+        # cmd = [
+        #     "pixi",
+        #     "run",
+        #     "cryoread",
+        #     "--mode=0",
+        #     f"-F={mrc_file}",
+        #     "--contour=0",
+        #     f"--gpu={gpu_ids}",
+        #     f"--batch_size={batch_size}",
+        #     f"--prediction_only",
+        #     f"--resolution={reso_input}",
+        #     f"--output={curr_out_dir}",
+        # ]
+        # cmd = [
+        #     "conda",
+        #     "run",
+        #     "-n",
+        #     "DeepMASC",
+        #     "python",
+        #     os.path.abspath(str(CRYOREAD_PATH / "main.py")),
+        #     "--mode=0",
+        #     f"-F={mrc_file}",
+        #     "--contour=0",
+        #     f"--gpu={gpu_ids}",
+        #     f"--batch_size={batch_size}",
+        #     f"--prediction_only",
+        #     f"--resolution={reso_input}",
+        #     f"--output={curr_out_dir}",
+        # ]
         cmd = [
-            "pixi",
-            "run",
-            "cryoread",
+            CONDA_PYTHON_PATH,
+            os.path.abspath(str(CRYOREAD_PATH / "main.py")),
             "--mode=0",
             f"-F={mrc_file}",
             "--contour=0",
@@ -300,11 +339,13 @@ try:
 
         result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
         result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
-except:
+    
+    # Only cleanup temp dir if everything succeeded
+    temp_dir.cleanup()  # delete temp dir
+except Exception as e:
     print("[GTF_DEBUG] Error running CryoREAD")
-
-temp_dir.cleanup()  # delete temp dir
-os.chdir(TEMP_CURR_DIR)
+    print(f"[GTF_DEBUG] Temp directory preserved for debugging: {temp_dir}")
+    print(f"[GTF_DEBUG] Error: {e}")
 
 # Get 1st entry of sorted class3d model table by CryoREAD
 first_class3d_sort_entry_list = result_list_cryoREAD[0]

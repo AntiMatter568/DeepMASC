@@ -8,6 +8,7 @@ import tempfile
 import glob
 from map_utils import calc_map_ccc, calculate_fsc, is_map_empty
 import select
+import sys
 
 
 if __name__ == "__main__":
@@ -114,7 +115,7 @@ if __name__ == "__main__":
                 logger.info(f"Running CryoREAD prediction on {mrc_file}")
                 logger.info(f"MRC file: {mrc_file}")
                 cmd = [
-                    "python",
+                    sys.executable,
                     str(CRYOREAD_PATH),
                     "--mode=0",
                     f"-F={mrc_file}",

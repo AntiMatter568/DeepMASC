@@ -2,13 +2,19 @@ import asyncio
 import os
 
 
-async def run_subprocess(cmd):
+async def run_subprocess(cmd, env=None, cwd=None):
     # Create the subprocess with pipes for stdout and stderr
+    # Set up environment variables
+    subprocess_env = dict(os.environ, PYTHONUNBUFFERED="1")
+    if env:
+        subprocess_env.update(env)
+    
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env=dict(os.environ, PYTHONUNBUFFERED="1"),
+        env=subprocess_env,
+        cwd=cwd,
     )
 
     # Asynchronous function to read and print lines from a stream

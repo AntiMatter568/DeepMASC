@@ -18,6 +18,7 @@ from loguru import logger
 from utils import run_subprocess
 import asyncio
 import shutil
+import sys
 
 # change to relative path to this file
 CURR_SCIPT_PATH = Path(__file__).absolute().parent
@@ -52,7 +53,7 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
         
         # Prepare the command for running CryoREAD
         cmd = [
-            "python",
+            sys.executable,
             str(cryoread_main_path),
             "--mode=0",
             f"-F={mrc_path}",

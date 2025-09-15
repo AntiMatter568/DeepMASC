@@ -41,11 +41,116 @@ from operator import itemgetter
 import math
 import numpy as np
 import pathlib
+import struct
 
 
 # ========================================================================================
 # Helper Functions
 # ========================================================================================
+# ----------------------------------------------------------------------------------------
+# Empty map detection function
+# ----------------------------------------------------------------------------------------
+def is_map_empty(mrc_file):
+    """
+    Check if the map is empty (all values close to zero)
+    Reads MRC file directly using only standard Python libraries
+    
+    Args:
+        mrc_file: Path to the MRC file
+        
+    Returns:
+        bool: True if the map is empty, False otherwise
+    """
+    try:
+        with open(mrc_file, 'rb') as f:
+            # Read MRC header (first 1024 bytes)
+            header = f.read(1024)
+            if len(header) < 1024:
+                print(f"[GTF_WARNING] MRC file {mrc_file} header too short")
+                return False
+            
+            # Parse header to get dimensions and data type
+            # Try little-endian first, then big-endian if values seem unreasonable
+            nx, ny, nz, mode = struct.unpack('<4i', header[:16])
+            
+            # Check if values are reasonable (basic sanity check)
+            if nx <= 0 or ny <= 0 or nz <= 0 or nx > 10000 or ny > 10000 or nz > 10000:
+                # Try big-endian
+                nx, ny, nz, mode = struct.unpack('>4i', header[:16])
+                if nx <= 0 or ny <= 0 or nz <= 0 or nx > 10000 or ny > 10000 or nz > 10000:
+                    print(f"[GTF_WARNING] Invalid dimensions in MRC file {mrc_file}: {nx}x{ny}x{nz}")
+                    return False
+            
+            # Determine data type and struct format based on mode
+            if mode == 0:  # signed 8-bit integer
+                struct_format = 'b'
+                bytes_per_voxel = 1
+            elif mode == 1:  # signed 16-bit integer
+                struct_format = 'h'
+                bytes_per_voxel = 2
+            elif mode == 2:  # 32-bit float
+                struct_format = 'f'
+                bytes_per_voxel = 4
+            elif mode == 6:  # unsigned 16-bit integer
+                struct_format = 'H'
+                bytes_per_voxel = 2
+            else:
+                print(f"[GTF_WARNING] Unsupported MRC mode {mode} in file {mrc_file}")
+                return False
+            
+            # Calculate total number of voxels and data size
+            total_voxels = nx * ny * nz
+            expected_size = total_voxels * bytes_per_voxel
+            
+            # Check file size
+            current_pos = f.tell()
+            f.seek(0, 2)  # Seek to end
+            file_size = f.tell()
+            f.seek(current_pos)  # Seek back
+            
+            if file_size < current_pos + expected_size:
+                print(f"[GTF_WARNING] MRC file {mrc_file} data portion too short")
+                return False
+            
+            # Read data in chunks to check if all values are close to zero
+            chunk_size = min(1024, total_voxels)  # Process in chunks of 1024 voxels or less
+            tolerance = 1e-10
+            
+            for i in range(0, total_voxels, chunk_size):
+                voxels_to_read = min(chunk_size, total_voxels - i)
+                bytes_to_read = voxels_to_read * bytes_per_voxel
+                
+                data_chunk = f.read(bytes_to_read)
+                if len(data_chunk) < bytes_to_read:
+                    print(f"[GTF_WARNING] Unexpected end of file in {mrc_file}")
+                    return False
+                
+                # Unpack the chunk and check values
+                format_string = '<' + str(voxels_to_read) + struct_format
+                try:
+                    values = struct.unpack(format_string, data_chunk)
+                except struct.error:
+                    # Try big-endian if little-endian fails
+                    format_string = '>' + str(voxels_to_read) + struct_format
+                    try:
+                        values = struct.unpack(format_string, data_chunk)
+                    except struct.error:
+                        print(f"[GTF_WARNING] Failed to unpack data chunk in {mrc_file}")
+                        return False
+                
+                # Check if any value is significantly different from zero
+                for value in values:
+                    if abs(value) > tolerance:
+                        return False
+            
+            # If we've read all data and all values are close to zero
+            return True
+                
+    except Exception as e:
+        print(f"[GTF_WARNING] Error reading MRC file {mrc_file}: {e}")
+        return False
+
+
 # ----------------------------------------------------------------------------------------
 # Generate command line
 # ----------------------------------------------------------------------------------------
