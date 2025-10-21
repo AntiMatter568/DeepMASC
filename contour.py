@@ -328,24 +328,28 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input_map_path", type=str, required=True, help="The input map path")
     parser.add_argument("-o", "--output_folder", type=str, required=True, help="The output folder")
-    parser.add_argument("-g", "--gpu_id", type=str, required=True, help="The gpu id for cryoREAD prediction")
+    parser.add_argument("-g", "--gpu_id", type=str, required=False, help="The gpu id for cryoREAD prediction (required if -r is specified)")
     parser.add_argument("-p", "--plot_all", action="store_true", help="Draw a plot for each of the components")
-    parser.add_argument("-n", "--num_components", type=int, default=2, help="Number of components for mixture model")
+    parser.add_argument("-n", "--num_components", type=int, default=2, help="Number of components for mixture model, default is 2")
     parser.add_argument("-r", "--refinement_mask", action="store_true", help="Generate more fine-grained mask for refinement")
-    parser.add_argument("-b", "--batch_size", type=int, default=8, help="The batch size for cryoREAD prediction")
-    parser.add_argument("-m", "--morph_radius", type=int, default=3, help="The radius for morphological operations (opening, closing)")
+    parser.add_argument("-b", "--batch_size", type=int, default=8, help="The batch size for cryoREAD prediction, default is 8")
+    parser.add_argument("-m", "--morph_radius", type=int, default=3, help="The radius for morphological operations (opening, closing), default is 3")
     parser.add_argument(
         "-d",
         "--mask_diameter",
         type=int,
         default=95,
         choices=range(0, 101),
-        help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable",
+        help="The diameter of the mask in percentage to the shortest dimension of the map (from 0 to 100), set to 0 to disable, default is 95",
     )
     parser.add_argument("-a", "--aggressive", action="store_true", help="Use more aggressive mask cutoff when using GMM mask")
-    parser.add_argument("-c", "--cutoff_prob", type=float, default=0.3, help="The cutoff probability for the mask if using CryoREAD mask")
+    parser.add_argument("-c", "--cutoff_prob", type=float, default=0.3, help="The cutoff probability for the mask if using CryoREAD mask, default is 0.3")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
+    
+    # Validate that gpu_id is provided when refinement_mask is enabled
+    if args.refinement_mask and args.gpu_id is None:
+        parser.error("-g/--gpu_id is required when -r/--refinement_mask is specified")
 
     final_out_mask_path = os.path.join(args.output_folder, "prot_mask_final.mrc")
     
@@ -418,4 +422,4 @@ if __name__ == "__main__":
         final_out_mask_path_resampled = os.path.join(output_folder, "prot_mask_final_resampled.mrc")
         if os.path.exists(final_out_mask_path_resampled):
             os.remove(final_out_mask_path_resampled)
-        os.symlink(final_out_mask_path, final_out_mask_path_resampled)
+        os.symlink(os.path.abspath(final_out_mask_path), final_out_mask_path_resampled)
