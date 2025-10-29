@@ -4,7 +4,7 @@ A deep learning based tool to automatically select the best reconstructed 3D map
 
 ## Features
 
-- **AutoClass3D**: Automatically select the best reconstructed 3D maps from RELION Class3D/InitialModel outputs
+- **AutoSelect3D**: Automatically select the best reconstructed 3D maps from RELION Class3D/InitialModel outputs
 - **AutoContour**: Automatically determine contour levels and generate masks for cryo-EM maps
 - **Mask Evaluation**: Evaluate 3D mask quality based on FSC criteria from RELION PostProcess jobs
 - **Module System**: Optional environment module system for easy command-line access without manual activation
@@ -133,7 +133,7 @@ UCSF Chimera is required for map resampling functionality in AutoContour and map
 
 ## Documentation
 
-- **[AutoClass3D Documentation](README_AutoClass3D.md)** - Automatically select the best 3D maps from Class3D/InitialModel outputs
+- **[AutoSelect3D Documentation](README_AutoSelect3D.md)** - Automatically select the best 3D maps from Class3D/InitialModel outputs
 - **[AutoContour Documentation](README_AutoContour.md)** - Automatically determine contour levels and generate masks
 - **[Mask Evaluation Documentation](README_MaskEvaluation.md)** - Evaluate 3D mask quality based on FSC criteria
 - **[Module System Guide](module/README.md)** - Quick start guide for using DeepMASC with environment modules

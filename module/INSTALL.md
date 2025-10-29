@@ -119,7 +119,7 @@ deepmasc --help
 deepmasc-contour --help
 
 # Run DeepMASC standalone
-deepmasc -f examples/job016/run_it025_class*.mrc -g 0 -o output_test
+deepmasc -f examples/Class3D/job016/run_it025_class*.mrc -g 0 -o output_test
 
 # Or use in RELION GUI - just specify the command name:
 # External Executable: deepmasc-relion-select
@@ -137,10 +137,10 @@ module unload deepmasc
 ```bash
 # After loading the module
 deepmasc \
-  -f examples/job016/run_it025_class001.mrc \
-     examples/job016/run_it025_class002.mrc \
-     examples/job016/run_it025_class003.mrc \
-     examples/job016/run_it025_class004.mrc \
+  -f examples/Class3D/job016/run_it025_class001.mrc \
+     examples/Class3D/job016/run_it025_class002.mrc \
+     examples/Class3D/job016/run_it025_class003.mrc \
+     examples/Class3D/job016/run_it025_class004.mrc \
   -g 0 \
   -o output_autoselect
 ```
@@ -150,13 +150,13 @@ deepmasc \
 ```bash
 # GMM-based mask (fast)
 deepmasc-contour \
-  -i examples/job016/run_it025_class001.mrc \
+  -i examples/Class3D/job016/run_it025_class001.mrc \
   -o output_mask_gmm \
   -g 0 -p
 
 # CryoREAD refinement mask (slower, more accurate)
 deepmasc-contour \
-  -i examples/job016/run_it025_class001.mrc \
+  -i examples/Class3D/job016/run_it025_class001.mrc \
   -o output_mask_refined \
   -g 0 -p -r -b 16
 ```

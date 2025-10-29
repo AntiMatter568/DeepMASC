@@ -67,10 +67,10 @@ See [INSTALL.md](INSTALL.md) for detailed manual installation instructions if yo
 module load deepmasc
 
 # AutoSelect3D - Select best map from multiple classes
-deepmasc -f examples/job016/run_it025_class*.mrc -g 0 -o output
+deepmasc -f examples/Class3D/job016/run_it025_class*.mrc -g 0 -o output
 
 # AutoContour - Generate masks
-deepmasc-contour -i examples/job016/run_it025_class001.mrc -o mask_output -g 0
+deepmasc-contour -i examples/Class3D/job016/run_it025_class001.mrc -o mask_output -g 0
 
 # Unload when done
 module unload deepmasc
