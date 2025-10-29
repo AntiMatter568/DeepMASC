@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# DeepMASC - RELION Eval Refinement Mask wrapper script
+# This script runs the gtf_relion4_run_eval_refinement_mask.py script using the conda environment Python
+#
+
+# Check if DEEPMASC_PYTHON is set (should be set by the module)
+if [ -z "$DEEPMASC_PYTHON" ]; then
+    echo "Error: DEEPMASC_PYTHON not set. Did you load the module?"
+    echo "Run: module load deepmasc"
+    exit 1
+fi
+
+# Check if Python exists
+if [ ! -f "$DEEPMASC_PYTHON" ]; then
+    echo "Error: Python interpreter not found at: $DEEPMASC_PYTHON"
+    echo "Please check your conda environment installation."
+    exit 1
+fi
+
+# Run the RELION eval refinement mask script with all arguments passed to this script
+exec "$DEEPMASC_PYTHON" "$DEEPMASC_ROOT/gtf_relion4_run_eval_refinement_mask.py" "$@"
