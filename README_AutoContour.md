@@ -64,6 +64,12 @@ There is one file associated with RELION integration of AutoContour:
 
 ### RELION GUI Setup Instructions
 
+**Note:** If you have installed the DeepMASC module system (see `module/README.md`), you can use the convenient wrapper command:
+- Use `deepmasc-relion-contour` instead of `python /path/to/gtf_relion4_run_autocontour.py`
+- No need to activate conda or specify full paths!
+
+#### Traditional Setup (without module system):
+
 1. From RELION GUI, Choose "External", then in "External Executable" box enter:
    - **External Executable**: `python /path/to/gtf_relion4_run_autocontour.py`
 

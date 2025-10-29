@@ -133,8 +133,8 @@ UCSF Chimera is required for map resampling functionality in AutoContour and map
 
 ## Documentation
 
-- **[AutoClass3D Documentation](AutoClass3D.md)** - Automatically select the best 3D maps from Class3D/InitialModel outputs
-- **[AutoContour Documentation](AutoContour.md)** - Automatically determine contour levels and generate masks
-- **[Mask Evaluation Documentation](README_mask_evaluation.md)** - Evaluate 3D mask quality based on FSC criteria
+- **[AutoClass3D Documentation](README_AutoClass3D.md)** - Automatically select the best 3D maps from Class3D/InitialModel outputs
+- **[AutoContour Documentation](README_AutoContour.md)** - Automatically determine contour levels and generate masks
+- **[Mask Evaluation Documentation](README_MaskEvaluation.md)** - Evaluate 3D mask quality based on FSC criteria
 - **[Module System Guide](module/README.md)** - Quick start guide for using DeepMASC with environment modules
 - **[Module Installation Guide](module/INSTALL.md)** - Detailed installation instructions for the module system

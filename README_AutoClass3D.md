@@ -99,6 +99,12 @@ There are three files associated with RELION integration of AutoSelect3D:
 
 ### RELION GUI Setup Instructions
 
+**Note:** If you have installed the DeepMASC module system (see `module/README.md`), you can use the convenient wrapper commands instead of full Python paths:
+- Use `deepmasc-relion-select` instead of `python /path/to/gtf_relion4_run_select_class3d.py`
+- No need to activate conda or specify full paths!
+
+#### Traditional Setup (without module system):
+
 1. From RELION GUI, Choose "External", then in "External Executable" box enter:
    - **External Executable**: `python /path/to/gtf_relion4_run_select_class3d.py`
 
