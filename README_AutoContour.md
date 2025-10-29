@@ -6,6 +6,58 @@ AutoContour automatically determines contour levels and generates masks for cryo
 
 <details>
 
+### Basic Usage
+
+```bash
+conda activate DeepMASC
+PYTHONNOUSERSITE=1 python contour.py
+```
+
+### Alternative: Using Direct Python Path (No Activation Required)
+
+You can also run without activating the environment by using the direct path to the conda environment's Python interpreter:
+
+```bash
+# Find your conda/mamba environment path
+conda info --envs
+# OR if using mamba:
+mamba info --envs
+
+# Use the direct Python path (replace <CONDA_PATH> with your actual conda installation path)
+<CONDA_PATH>/envs/DeepMASC/bin/python contour.py
+```
+
+For example:
+```bash
+# Common conda paths:
+# Miniconda: ~/miniconda3/envs/DeepMASC/bin/python contour.py
+# Miniforge: ~/miniforge3/envs/DeepMASC/bin/python contour.py
+# System conda: /opt/conda/envs/DeepMASC/bin/python contour.py
+
+~/miniconda3/envs/DeepMASC/bin/python contour.py -i examples/Class3D/job016/run_it025_class001.mrc -o output_mask -g 0
+```
+
+### Alternative: Using Module Wrapper (Recommended)
+
+If you have installed the DeepMASC module system (see [module/README.md](module/README.md)), you can use the convenient wrapper commands:
+
+```bash
+# Load the module
+module load deepmasc
+
+# Run AutoContour using the wrapper
+deepmasc-contour -i examples/Class3D/job016/run_it025_class001.mrc -o output_mask -g 0
+
+# No need to activate conda or specify full paths!
+```
+
+Benefits:
+- No need to activate conda environment
+- Clean, short commands
+- Works from any directory
+
+For installation instructions, see [module/INSTALL.md](module/INSTALL.md).
+
 ### Arguments
 
 **Required Arguments:**

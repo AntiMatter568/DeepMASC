@@ -38,6 +38,27 @@ For example:
 ~/miniconda3/envs/DeepMASC/bin/python main.py -f examples/Class3D/job016/run_it025_class001.mrc -g 0 -o output_test
 ```
 
+### Alternative: Using Module Wrapper (Recommended)
+
+If you have installed the DeepMASC module system (see [module/README.md](module/README.md)), you can use the convenient wrapper commands:
+
+```bash
+# Load the module
+module load deepmasc
+
+# Run AutoSelect3D using the wrapper
+deepmasc -f examples/Class3D/job016/run_it025_class*.mrc -g 0 -o output
+
+# No need to activate conda or specify full paths!
+```
+
+Benefits:
+- No need to activate conda environment
+- Clean, short commands
+- Works from any directory
+
+For installation instructions, see [module/INSTALL.md](module/INSTALL.md).
+
 ### Arguments
 
 **Required Arguments:**
