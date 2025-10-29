@@ -172,22 +172,23 @@ There is one file associated with RELION integration of AutoContour:
 | File                                | Description                                                                                                                              |
 |-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
 | prot_mask_final.mrc                 | The final binary mask output. This will be either the GMM-based mask or CryoREAD-refined mask depending on your settings                 |
+| prot_mask_final_resampled.mrc       | The final mask resampled to match the original input map dimensions (resampled via Chimera when using `--refinement_mask`, otherwise a symlink to prot_mask_final.mrc) |
 | prot_mask.mrc                       | The conservative GMM-based binary mask, the same as prot_mask_final.mrc if `--aggressive` is not used and not using  `--refinement_mask` |
 | prot_mask_aggressive.mrc            | The aggressive GMM-based binary mask, the same as prot_mask_final.mrc if `--aggressive` is used and not using  `--refinement_mask`       |
 | {input_name}_hist_overall.png       | Overall density distribution histogram showing original and masked data distributions                                                    |
-| {input_name}_hist_by_components.png | Component-wise density distribution histogram (generated when using --plot_all)                                                          |
+| {input_name}_hist_by_components.png | Component-wise density distribution histogram (generated when using `--plot_all`)                                                          |
 | {input_name}_revised_contour.txt    | Text file containing revised contour levels (both conservative and aggressive) and masked percentage                                     |
 
-When using --refinement_mask, additional files are generated:
-| File                     | Description                                                                                  |
-|--------------------------|----------------------------------------------------------------------------------------------|
-| input_segment.mrc        | Input map after preprocessing for CryoREAD                                                   |
-| mask_protein.mrc         | Initial protein mask from CryoREAD                                                           |
-| chain_protein_prob.mrc   | Protein probability map from CryoREAD                                                        |
-| chain_base_prob.mrc      | Base probability map from CryoREAD                                                           |
-| chain_phosphate_prob.mrc | Phosphate probability map from CryoREAD                                                      |
-| chain_sugar_prob.mrc     | Sugar probability map from CryoREAD                                                          |
-| CCC_FSC05.txt            | Cross-Correlation between input map and masked volume and FSC 0.5 cutoff value from CryoREAD |
+When using `--refinement_mask`, additional files are generated:
+| File                                      | Description                                                                                  |
+|-------------------------------------------|----------------------------------------------------------------------------------------------|
+| input.mrc                                 | Input map after preprocessing for CryoREAD                                                   |
+| mask_protein.mrc                          | Initial protein mask from CryoREAD                                                           |
+| 2nd_stage_detection/chain_protein_prob.mrc   | Protein probability map from CryoREAD (used to generate final mask)                                                        |
+| 2nd_stage_detection/chain_base_prob.mrc      | Base probability map from CryoREAD                                                           |
+| 2nd_stage_detection/chain_phosphate_prob.mrc | Phosphate probability map from CryoREAD                                                      |
+| 2nd_stage_detection/chain_sugar_prob.mrc     | Sugar probability map from CryoREAD                                                          |
+| CCC_FSC05.txt                             | Cross-Correlation between input map and masked volume and FSC 0.5 cutoff value from CryoREAD |
 
 </details>
 
