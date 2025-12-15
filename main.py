@@ -39,6 +39,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Dry run, do not run CryoREAD but just print commands",
     )
+    parser.add_argument(
+        "--resolution_threshold",
+        type=float,
+        help="Resolution threshold in Angstroms for filtering maps (maps with FSC 0.5 resolution > threshold will be excluded)",
+        default=30.0,
+    )
 
     args = parser.parse_args()
 
@@ -48,6 +54,10 @@ if __name__ == "__main__":
 
     # Determine resolution of model to use
     reso_input = 8.0 if args.reso == "Low" else 2.0
+
+    # Resolution threshold for filtering
+    resolution_threshold = args.resolution_threshold
+    logger.info(f"Resolution threshold: {resolution_threshold} Å")
 
     logger.info("Input job folder path: ", args.files)
 
@@ -92,9 +102,32 @@ if __name__ == "__main__":
             class_ids=None,  # Use indices as class_ids for CLI mode
         )
 
+        # Filter results based on resolution threshold
+        filtered_result_list = []
+        excluded_maps = []
+
+        for item in result_list:
+            class_id, mrc_file, real_space_cc, fsc_05_resolution = item
+            if fsc_05_resolution <= resolution_threshold:
+                filtered_result_list.append(item)
+            else:
+                excluded_maps.append(item)
+                logger.info(f"Excluding map {mrc_file} with FSC 0.5 resolution {fsc_05_resolution:.2f} Å (> {resolution_threshold} Å)")
+
+        if excluded_maps:
+            logger.info(f"Excluded {len(excluded_maps)} map(s) due to resolution threshold")
+        else:
+            logger.info(f"No maps excluded by resolution threshold")
+
+        if not filtered_result_list:
+            logger.error(f"No maps remain after applying resolution threshold of {resolution_threshold} Å. Exiting.")
+            exit(1)
+
+        logger.info(f"Proceeding with {len(filtered_result_list)} map(s) after resolution filtering")
+
         # Convert to format expected by CLI output (remove class_id)
         # CLI expects: [mrc_file, real_space_cc, golden_standard_fsc]
-        map_list = [[item[1], item[2], item[3]] for item in result_list]
+        map_list = [[item[1], item[2], item[3]] for item in filtered_result_list]
 
     if not args.dryrun:
         # sort by real space CC
