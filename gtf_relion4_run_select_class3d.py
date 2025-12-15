@@ -71,6 +71,7 @@ from pathlib import Path
 from utils import run_subprocess
 import asyncio
 from config import CONDA_PYTHON_PATH
+from deepmasc_core import process_map_files
 
 """<<< Import"""
 
@@ -222,130 +223,34 @@ sort_table = filtered_sort_table
 print(f"[GTF_DEBUG] Proceeding with {len(sort_table)} map(s) after resolution filtering")
 print("")
 
-# CryoREAD
-CURR_SCRIPT_PATH = Path(__file__).absolute().parent
+# CryoREAD - using shared core function
 FINAL_OUTDIR = os.path.abspath(outargs_rpath)
 input_job_dir_rpath_abs = os.path.abspath(input_job_dir_rpath)
-CRYOREAD_PATH = CURR_SCRIPT_PATH / "CryoREAD"
-result_list_cryoREAD = []
 
-# Create the temp directory if it doesn't exist
-temp_base_dir = os.path.join(outargs_rpath, "temp")
-os.makedirs(temp_base_dir, exist_ok=True)
+# Extract MRC files and class IDs from sort_table
+mrc_files = []
+class_ids = []
+for sort_entry_list in sort_table:
+    mrc_file = os.path.join(input_job_dir_rpath_abs, sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
+    mrc_file = os.path.abspath(mrc_file)
+    class_id = int(sort_entry_list[idx_class3d_gtc_class3d_id])
 
-temp_dir = tempfile.TemporaryDirectory(dir=temp_base_dir)
-temp_dir = os.path.abspath(temp_dir.name)
-try:
-    print("[GTF_DEBUG] Created temporary directory", temp_dir)
+    mrc_files.append(mrc_file)
+    class_ids.append(class_id)
 
-    for sort_entry_list in sort_table:
-        mrc_file = os.path.join(input_job_dir_rpath_abs, sort_entry_list[idx_class3d_map_dir_rpath].split("/")[-1])
-        # absolute path
-        mrc_file = os.path.abspath(mrc_file)
-        class_id = int(sort_entry_list[idx_class3d_gtc_class3d_id])
-        
-        # Check if the map is empty before processing
-        if is_map_empty(mrc_file):
-            print(f"[GTF_WARNING] Empty map found, skipping {mrc_file}")
-            result_list_cryoREAD.append([class_id, mrc_file, 0.0, 0.0])  # class_id, mrc_file, real_space_cc, cutoff_05
-            continue
-        
-        print("[GTF_DEBUG] Running CryoREAD on mrc_file : ", mrc_file)
-        map_name = Path(mrc_file).stem.split(".")[0].strip()
-        curr_out_dir = os.path.join(temp_dir, map_name)
-        print("[GTF_DEBUG] curr_out_dir : ", curr_out_dir)
-        os.makedirs(curr_out_dir, exist_ok=True)
-        seg_map_path = os.path.join(curr_out_dir, "input_segment.mrc")
-        prot_prob_path = os.path.join(curr_out_dir, "mask_protein.mrc")
-        # cmd = [
-        #     "pixi",
-        #     "run",
-        #     "cryoread",
-        #     "--mode=0",
-        #     f"-F={mrc_file}",
-        #     "--contour=0",
-        #     f"--gpu={gpu_ids}",
-        #     f"--batch_size={batch_size}",
-        #     f"--prediction_only",
-        #     f"--resolution={reso_input}",
-        #     f"--output={curr_out_dir}",
-        # ]
-        # cmd = [
-        #     "conda",
-        #     "run",
-        #     "-n",
-        #     "DeepMASC",
-        #     "python",
-        #     os.path.abspath(str(CRYOREAD_PATH / "main.py")),
-        #     "--mode=0",
-        #     f"-F={mrc_file}",
-        #     "--contour=0",
-        #     f"--gpu={gpu_ids}",
-        #     f"--batch_size={batch_size}",
-        #     f"--prediction_only",
-        #     f"--resolution={reso_input}",
-        #     f"--output={curr_out_dir}",
-        # ]
-        cmd = [
-            CONDA_PYTHON_PATH,
-            os.path.abspath(str(CRYOREAD_PATH / "main.py")),
-            "--mode=0",
-            f"-F={mrc_file}",
-            "--contour=0",
-            f"--gpu={gpu_ids}",
-            f"--batch_size={batch_size}",
-            f"--prediction_only",
-            f"--resolution={reso_input}",
-            f"--output={curr_out_dir}",
-        ]
-        print("[GTF_DEBUG] CryoREAD Command : ", " ".join(cmd))
+print(f"[GTF_DEBUG] Processing {len(mrc_files)} maps with CryoREAD")
 
-        exit_code = asyncio.run(run_subprocess(cmd))
-        if exit_code != 0:
-            raise ValueError(f"# Logical Error: CryoREAD failed with exit code {exit_code}")
-
-        output_file = os.path.join(curr_out_dir, "CCC_FSC05.txt")
-        metrics = []
-        with open(output_file, "r") as f:
-            metrics = f.read().splitlines()
-
-        real_space_cc = float(metrics[0])
-        cutoff_05 = float(metrics[1])
-
-        if args.debug:
-            # copy all files to final output dir
-            shutil.copytree(curr_out_dir, os.path.join(FINAL_OUTDIR, map_name))
-        else:
-            # copyfiles to final output dir
-            shutil.copy(
-                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
-                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_base_prob.mrc"),
-            )
-            shutil.copy(
-                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
-                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_phosphate_prob.mrc"),
-            )
-            shutil.copy(
-                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
-                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_sugar_prob.mrc"),
-            )
-            shutil.copy(
-                os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
-                os.path.join(FINAL_OUTDIR, f"{map_name}_chain_protein_prob.mrc"),
-            )
-            shutil.copy(seg_map_path, os.path.join(FINAL_OUTDIR, f"{map_name}_segment.mrc"))
-            shutil.copy(prot_prob_path, os.path.join(FINAL_OUTDIR, f"{map_name}_mask_protein.mrc"))
-            shutil.copy(output_file, os.path.join(FINAL_OUTDIR, f"{map_name}_CCC_FSC05.txt"))
-
-        result_list_cryoREAD.append([class_id, mrc_file, real_space_cc, cutoff_05])
-        result_list_cryoREAD.sort(key=lambda elem: elem[2], reverse=True)
-    
-    # Only cleanup temp dir if everything succeeded
-    temp_dir.cleanup()  # delete temp dir
-except Exception as e:
-    print("[GTF_DEBUG] Error running CryoREAD")
-    print(f"[GTF_DEBUG] Temp directory preserved for debugging: {temp_dir}")
-    print(f"[GTF_DEBUG] Error: {e}")
+# Process all maps using shared function
+# Result format: [(class_id, mrc_file, real_space_cc, cutoff_05), ...]
+result_list_cryoREAD = process_map_files(
+    mrc_files=mrc_files,
+    output_path=FINAL_OUTDIR,
+    gpu_ids=gpu_ids,
+    batch_size=batch_size,
+    reso_input=reso_input,
+    debug_mode=args.debug,
+    class_ids=class_ids,
+)
 
 # Get 1st entry of sorted class3d model table by CryoREAD
 first_class3d_sort_entry_list = result_list_cryoREAD[0]

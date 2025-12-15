@@ -353,7 +353,7 @@ def run_class3d(relion_class3d_model_star_file_rpath, relion_job_dir_rpath, reli
 
     if (not os.path.exists(relion_job_dir_rpath)):
         gtf_print(
-            '[GTF_ERROR] RELION job directory "{]" does not exist. The script assumes the output directory exists already'.format(
+            '[GTF_ERROR] RELION job directory "{}" does not exist. The script assumes the output directory exists already'.format(
                 relion_job_dir_rpath))
         return
 

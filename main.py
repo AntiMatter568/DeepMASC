@@ -1,14 +1,9 @@
-import shutil
 from pathlib import Path
-import subprocess
 from loguru import logger
 import argparse
 import os
-import tempfile
 import glob
-from map_utils import calc_map_ccc, calculate_fsc, is_map_empty
-import select
-import sys
+from deepmasc_core import process_map_files
 
 
 if __name__ == "__main__":
@@ -56,9 +51,6 @@ if __name__ == "__main__":
 
     logger.info("Input job folder path: ", args.files)
 
-    CURR_SCIPT_PATH = Path(__file__).absolute().parent
-    CRYOREAD_PATH = CURR_SCIPT_PATH / "CryoREAD" / "main.py"
-
     # Expand wildcards in file patterns
     mrc_files = []
     for pattern in args.files:
@@ -83,120 +75,26 @@ if __name__ == "__main__":
     logger.info("MRC files count: " + str(len(mrc_files)))
     logger.info("MRC files path:\n" + "\n".join(mrc_files))
 
-    # run CryoREAD
-
-    # make temp dir
-    temp_path = os.path.join(output_path, "temp")
-    os.makedirs(temp_path, exist_ok=True)
-    temp_dir = tempfile.TemporaryDirectory(dir=temp_path)
-    temp_dir_path = os.path.abspath(temp_dir.name)
-
-    try:
+    # Process maps using shared core function
+    if args.dryrun:
+        logger.info("Dry run mode - skipping actual processing")
         map_list = []
+    else:
+        # Process all maps and get results
+        # Result format: [(class_id, mrc_file, real_space_cc, cutoff_05), ...]
+        result_list = process_map_files(
+            mrc_files=mrc_files,
+            output_path=output_path,
+            gpu_ids=args.gpus,
+            batch_size=args.batch,
+            reso_input=reso_input,
+            debug_mode=args.debug,
+            class_ids=None,  # Use indices as class_ids for CLI mode
+        )
 
-        for mrc_file in mrc_files:
-            if is_map_empty(mrc_file):
-                logger.warning(f"Empty map found, skipping {mrc_file}")
-                map_list.append([mrc_file, 0.0, 0.0])  # real space CC, golden standard FSC, indicator for empty map
-                continue
-            map_name = Path(mrc_file).stem.split(".")[0].strip()
-            curr_out_dir = os.path.join(temp_dir_path, map_name)
-
-            seg_map_path = curr_out_dir + "/input_segment.mrc"
-            prot_prob_path = curr_out_dir + "/mask_protein.mrc"
-
-            if not os.path.exists(seg_map_path) or not os.path.exists(prot_prob_path):
-                logger.info(f"Running CryoREAD prediction on {mrc_file}")
-                logger.info(f"MRC file: {mrc_file}")
-                cmd = [
-                    sys.executable,
-                    str(CRYOREAD_PATH),
-                    "--mode=0",
-                    f"-F={mrc_file}",
-                    "--contour=0",
-                    f"--gpu={args.gpus}",
-                    f"--batch_size={args.batch}",
-                    f"--prediction_only",
-                    f"--resolution={reso_input}",
-                    f"--output={curr_out_dir}",
-                ]
-
-                logger.info(f"Running cryoREAD command: {' '.join(cmd)}")
-
-                if args.dryrun:
-                    continue
-
-                # Use asyncio to handle subprocess output
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    bufsize=1,
-                    universal_newlines=True,
-                    env=dict(os.environ, PYTHONUNBUFFERED="1"),  # Force Python subprocess to be unbuffered
-                )
-
-                # Read and print output
-                outputs = [process.stdout, process.stderr]
-                while outputs:
-                    readable, _, _ = select.select(outputs, [], [])
-                    for output in readable:
-                        line = output.readline()
-                        if not line:
-                            outputs.remove(output)
-                            continue
-                        if output == process.stdout:
-                            logger.info(line.strip())
-                        else:
-                            logger.error(line.strip())
-
-                # Wait for process to complete
-                process.wait()
-            try:
-                real_space_cc = calc_map_ccc(seg_map_path, prot_prob_path)[0]
-            except:
-                logger.warning("Failed to calculate real space CC")
-                real_space_cc = 0.0
-
-            try:
-                fsc_output_path = os.path.join(curr_out_dir, "fsc_data.txt")
-                x, fsc, cutoff_05, cutoff_0143 = calculate_fsc(seg_map_path, prot_prob_path, fsc_output_path)
-            except:
-                logger.warning("Failed to calculate FSC")
-                cutoff_05 = 0.0
-            map_list.append([mrc_file, real_space_cc, cutoff_05])
-
-            if args.debug:
-                final_out_path = os.path.join(output_path, map_name)
-                shutil.copytree(curr_out_dir, final_out_path)
-            else:
-                # copyfiles to final output dir
-                shutil.copy(
-                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_base_prob.mrc"),
-                    os.path.join(output_path, f"{map_name}_chain_base_prob.mrc"),
-                )
-                shutil.copy(
-                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_phosphate_prob.mrc"),
-                    os.path.join(output_path, f"{map_name}_chain_phosphate_prob.mrc"),
-                )
-                shutil.copy(
-                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_sugar_prob.mrc"),
-                    os.path.join(output_path, f"{map_name}_chain_sugar_prob.mrc"),
-                )
-                shutil.copy(
-                    os.path.join(curr_out_dir, "2nd_stage_detection", "chain_protein_prob.mrc"),
-                    os.path.join(output_path, f"{map_name}_chain_protein_prob.mrc"),
-                )
-                shutil.copy(seg_map_path, os.path.join(output_path, f"{map_name}_segment.mrc"))
-                shutil.copy(prot_prob_path, os.path.join(output_path, f"{map_name}_mask_protein.mrc"))
-                shutil.copy(os.path.join(curr_out_dir, "CCC_FSC05.txt"), os.path.join(output_path, f"{map_name}_CCC_FSC05.txt"))
-
-    except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        logger.error("Stack trace:", exc_info=True)
-
-    finally:
-        temp_dir.cleanup()
+        # Convert to format expected by CLI output (remove class_id)
+        # CLI expects: [mrc_file, real_space_cc, golden_standard_fsc]
+        map_list = [[item[1], item[2], item[3]] for item in result_list]
 
     if not args.dryrun:
         # sort by real space CC
