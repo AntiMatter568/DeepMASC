@@ -95,7 +95,7 @@ def combine_and_select_optimal_mask(output_folder, emdid):
         print("\nFalling back to valid results only:")
         fallback_results = combined_df[combined_df['valid'] == True]
         if len(fallback_results) > 0:
-            optimal_result = fallback_results.loc[fallback_results['corrected_res_0_143'].idxmax()]
+            optimal_result = fallback_results.loc[fallback_results['corrected_res_0_143'].idxmin()]
             print(f"Best valid result (no criterion check): extend_inimask {optimal_result['extend_inimask']}, soft edge width {optimal_result['soft_edge_width']}")
         else:
             print("No valid results found at all!")
