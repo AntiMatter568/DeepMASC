@@ -75,6 +75,8 @@ For installation instructions, see [module/INSTALL.md](module/INSTALL.md).
 
 * `-b, --batch`: Batch size to use for CryoREAD prediction. Controls how many boxes are processed simultaneously during the prediction phase.
 
+* `--resolution_threshold`: Resolution threshold in Angstroms for filtering maps (default: 30.0). Maps with FSC 0.5 resolution greater than this threshold will be excluded from the final results. This filtering is applied after CryoREAD processing.
+
 * `--dryrun`: When enabled, performs a dry run that only prints commands without actually executing CryoREAD. Useful for testing and verification.
 
 ### Examples
@@ -86,6 +88,12 @@ PYTHONNOUSERSITE=1 python main.py -f examples/Class3D/job016/run_it025_class???.
 **Using your own data:**
 ```bash
 PYTHONNOUSERSITE=1 python main.py -f /path/to/your/class1.mrc /path/to/your/class2.mrc /path/to/your/class3.mrc -g 0,1,2 -o /path/to/output/dir
+```
+
+**Using custom resolution threshold:**
+```bash
+# Only keep maps with FSC 0.5 resolution ≤ 25 Å
+PYTHONNOUSERSITE=1 python main.py -f examples/Class3D/job016/run_it025_class???.mrc -g 0 -o output_autoselectclass --resolution_threshold 25.0
 ```
 
 </details>
@@ -118,6 +126,8 @@ There are three files associated with RELION integration of AutoSelect3D:
 
 * `-b, --batch`: Batch size to use for CryoREAD prediction. Controls how many boxes are processed simultaneously during the prediction phase.
 
+* `--resolution_threshold`: Resolution threshold in Angstroms for filtering maps (default: 30.0). Maps with estimated resolution greater than this threshold will be excluded before CryoREAD processing. This helps avoid processing low-quality maps.
+
 ### RELION GUI Setup Instructions
 
 **Note:** If you have installed the DeepMASC module system (see `module/README.md`), you can use the convenient wrapper commands instead of full Python paths:
@@ -137,6 +147,7 @@ There are three files associated with RELION integration of AutoSelect3D:
    - `debug`: Set to `True` to enable debug mode (optional)
    - `reso`: Resolution setting (optional, Low(>5Å) or High(<5Å))
    - `batch`: Batch size for CryoREAD prediction (optional, on modern GPU 8 and 16 works well)
+   - `resolution_threshold`: Resolution threshold in Angstroms for filtering maps (optional, default: 30.0)
 
 4. In the "Running" tab:
    - Set "Number of threads" to 1

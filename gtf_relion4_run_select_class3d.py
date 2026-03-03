@@ -91,6 +91,7 @@ parser.add_argument("-g", "--gpus", type=str, help="GPU ID to use for CryoREAD p
 parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
 parser.add_argument("-r", "--reso", choices=["Low", "High"], type=str, help="Resolution to choose the deep learning model, can be Low(>5Å) or High(<5Å)", default="Low")
 parser.add_argument("-b", "--batch", type=int, help="Batch size to use for CryoREAD prediction", default=4)
+parser.add_argument("--resolution_threshold", type=float, help="Resolution threshold in Angstroms for filtering maps (maps with resolution > threshold will be excluded)", default=30.0)
 
 ### parser.add_argument("-m", "--model_star",           type=str,                                             help = "Input model star file Path (relative).")
 ### parser.add_argument("-r", "--script_repo",         type=str,                                              help = "Script repository directory path (full).")
@@ -103,6 +104,8 @@ gpu_ids = args.gpus
 reso_input = 8.0 if args.reso == "Low" else 2.0
 # batch size to use for CryoREAD prediction
 batch_size = args.batch
+# resolution threshold for filtering maps
+resolution_threshold = args.resolution_threshold
 ### model_star_rpath =str( args.model_star)
 ### script_repo_fpath = str(args.script_repo)
 invalid_str = "GTF_INVALID_STR"
@@ -112,6 +115,7 @@ print("[GTF_DEBUG] outargs_rpath     : %s" % outargs_rpath)
 print("[GTF_DEBUG] gpu_ids          : %s" % gpu_ids)
 print("[GTF_DEBUG] batch size       : %s" % batch_size)
 print("[GTF_DEBUG] reso input       : %s" % reso_input)
+print("[GTF_DEBUG] resolution threshold : %s Å" % resolution_threshold)
 print("[GTF_DEBUG] debug mode       : %s" % args.debug)
 print("[GTF_DEBUG] sys.executable   : %s" % sys.executable)
 print("[GTF_DEBUG] conda python path : %s" % CONDA_PYTHON_PATH)
@@ -196,8 +200,7 @@ for sort_entry_list in sort_table:
     i_sort_table += 1
 print("")
 
-# Filter out maps with estimated resolution > 30 Å
-resolution_threshold = 30.0
+# Filter out maps with estimated resolution > resolution_threshold
 filtered_sort_table = []
 excluded_maps = []
 
