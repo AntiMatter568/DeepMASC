@@ -82,6 +82,31 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
         return False
 
 
+def _load_revised_contour_from_txt(txt_path, aggressive=False):
+    """Load revised contour value from gmm_mask output txt file. Returns (revised_contour, mask_percent) or None if parse fails."""
+    try:
+        with open(txt_path) as f:
+            content = f.read()
+        revised_contour = None
+        revised_contour_agg = None
+        mask_percent = None
+        for line in content.strip().split("\n"):
+            if line.startswith("Revised contour (Aggressive):"):
+                revised_contour_agg = float(line.split(":", 1)[1].strip())
+            elif line.startswith("Revised contour:"):
+                revised_contour = float(line.split(":", 1)[1].strip())
+            elif line.startswith("Masked percentage:"):
+                mask_percent = float(line.split(":", 1)[1].strip())
+        if revised_contour_agg is None:
+            revised_contour_agg = revised_contour
+        contour = revised_contour_agg if aggressive else revised_contour
+        if contour is not None and mask_percent is not None:
+            return contour, mask_percent
+    except (OSError, ValueError) as e:
+        logger.debug(f"Could not load revised contour from {txt_path}: {e}")
+    return None
+
+
 def save_mrc(orig_map_path, data, out_path):
     with mrcfile.open(orig_map_path, permissive=True) as orig_map:
         with mrcfile.new(out_path, data=data.astype(np.float32), overwrite=True) as mrc:
@@ -231,10 +256,27 @@ def gmm_mask(
                 logger.warning(f"Components still collapsed after retry. Using {n_components_found} components found.")
         else:
             logger.info(f"Successfully fitted {n_components_found} components")
-        break
-    
-    logger.info(f"Predicting, feature shape: {data_to_predict.shape}")
-    preds = g.predict(data_to_predict)
+
+        # Predict on full-res data (may differ from fit data when map was resized)
+        logger.info(f"Predicting, feature shape: {data_to_predict.shape}")
+        preds = g.predict(data_to_predict)
+        ind_noise = np.argmin(np.abs(g.means_[:, 0].flatten()))
+        noise_comp = map_data[np.nonzero(map_data)][preds == ind_noise]
+
+        # Empty noise component can occur when full-res prediction differs from fit data
+        if noise_comp.size == 0:
+            if retry_count < max_retries:
+                logger.warning("Bayesian GMM noise component is empty on full-res prediction; retrying with extra component")
+                effective_num_components += 1
+                retry_count += 1
+                logger.info(f"Retrying with {effective_num_components} components")
+                continue
+            else:
+                logger.warning("Bayesian GMM noise component is empty; using minimum non-zero density as revised contour")
+                revised_contour = np.min(map_data[np.nonzero(map_data)])
+                break
+        else:
+            break
 
     # plot the histogram
     if plot_all:
@@ -408,6 +450,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-a", "--aggressive", action="store_true", help="Use more aggressive mask cutoff when using GMM mask")
     parser.add_argument("-c", "--cutoff_prob", type=float, default=0.3, help="The cutoff probability for the mask if using CryoREAD mask, default is 0.3")
+    parser.add_argument("--resume", action="store_true", help="Resume from existing GMM/CryoREAD outputs; skip steps whose outputs already exist")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
     
@@ -420,29 +463,58 @@ if __name__ == "__main__":
     input_map_path = os.path.abspath(args.input_map_path)
     output_folder = os.path.abspath(args.output_folder)
 
-    revised_contour, mask_percent = gmm_mask(
-        input_map_path=input_map_path,
-        output_folder=output_folder,
-        num_components=args.num_components,
-        use_grad=True,
-        n_init=3,
-        plot_all=args.plot_all,
-        morph_radius=args.morph_radius,
-        mask_diameter=args.mask_diameter,
-        aggressive=args.aggressive,
+    # Resume: skip GMM if outputs already exist
+    revised_contour_txt = os.path.join(output_folder, Path(input_map_path).stem + "_revised_contour.txt")
+    gmm_outputs_exist = (
+        os.path.exists(os.path.join(output_folder, "prot_mask.mrc"))
+        and os.path.exists(os.path.join(output_folder, "prot_mask_aggressive.mrc"))
+        and os.path.exists(revised_contour_txt)
     )
+    if args.resume and gmm_outputs_exist:
+        loaded = _load_revised_contour_from_txt(revised_contour_txt, aggressive=args.aggressive)
+        if loaded is not None:
+            revised_contour, mask_percent = loaded
+            logger.info(f"Resuming: loaded revised contour from {revised_contour_txt} (contour={revised_contour:.4f})")
+        else:
+            revised_contour, mask_percent = gmm_mask(
+                input_map_path=input_map_path,
+                output_folder=output_folder,
+                num_components=args.num_components,
+                use_grad=True,
+                n_init=3,
+                plot_all=args.plot_all,
+                morph_radius=args.morph_radius,
+                mask_diameter=args.mask_diameter,
+                aggressive=args.aggressive,
+            )
+    else:
+        revised_contour, mask_percent = gmm_mask(
+            input_map_path=input_map_path,
+            output_folder=output_folder,
+            num_components=args.num_components,
+            use_grad=True,
+            n_init=3,
+            plot_all=args.plot_all,
+            morph_radius=args.morph_radius,
+            mask_diameter=args.mask_diameter,
+            aggressive=args.aggressive,
+        )
 
     if args.refinement_mask:
-        if not run_cryoREAD(
-            mrc_path=input_map_path,
-            output_folder=output_folder,
-            batch_size=args.batch_size,
-            gpu_id=args.gpu_id,
-            contour_level=revised_contour,
-            debug=args.debug,
-        ):
-            logger.error("CryoREAD failed to run, please check the log file")
-            exit(1)
+        cryoread_prob_path = os.path.join(output_folder, "2nd_stage_detection", "chain_protein_prob.mrc")
+        if args.resume and os.path.exists(cryoread_prob_path):
+            logger.info(f"Resuming: skipping CryoREAD, using existing {cryoread_prob_path}")
+        else:
+            if not run_cryoREAD(
+                mrc_path=input_map_path,
+                output_folder=output_folder,
+                batch_size=args.batch_size,
+                gpu_id=args.gpu_id,
+                contour_level=revised_contour,
+                debug=args.debug,
+            ):
+                logger.error("CryoREAD failed to run, please check the log file")
+                exit(1)
 
         # load the mask
         with mrcfile.open(os.path.join(output_folder, "2nd_stage_detection", "chain_protein_prob.mrc"), permissive=True) as mrc:
@@ -466,21 +538,23 @@ if __name__ == "__main__":
     # Resample the final mask to match the original input map when refinement_mask is enabled
     if args.refinement_mask:
         final_out_mask_path_resampled = os.path.join(output_folder, "prot_mask_final_resampled.mrc")
-        
-        resample_script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resample_chimera.py")
-        cmd = ["chimera", "--nogui", resample_script_path, final_out_mask_path, input_map_path, final_out_mask_path_resampled]
-        logger.info(f"Running chimera resampling command: {' '.join(cmd)}")
-        try:
-            exit_code = run_subprocess_realtime(cmd, timeout=300)  # 5 minutes timeout for Chimera
-        except subprocess.TimeoutExpired:
-            logger.error("Chimera resampling timed out after 300 seconds")
-            raise ValueError("# Logical Error: Chimera resampling timed out")
-        
-        if exit_code != 0:
-            logger.error(f"Chimera failed with exit code {exit_code}")
-            raise ValueError(f"# Logical Error: Chimera failed with exit code {exit_code}")
+        if args.resume and os.path.exists(final_out_mask_path_resampled) and not os.path.islink(final_out_mask_path_resampled):
+            logger.info(f"Resuming: skipping Chimera resampling, using existing {final_out_mask_path_resampled}")
         else:
-            logger.info("Resampling completed successfully")
+            resample_script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resample_chimera.py")
+            cmd = ["chimera", "--nogui", resample_script_path, final_out_mask_path, input_map_path, final_out_mask_path_resampled]
+            logger.info(f"Running chimera resampling command: {' '.join(cmd)}")
+            try:
+                exit_code = run_subprocess_realtime(cmd, timeout=300)  # 5 minutes timeout for Chimera
+            except subprocess.TimeoutExpired:
+                logger.error("Chimera resampling timed out after 300 seconds")
+                raise ValueError("# Logical Error: Chimera resampling timed out")
+            
+            if exit_code != 0:
+                logger.error(f"Chimera failed with exit code {exit_code}")
+                raise ValueError(f"# Logical Error: Chimera failed with exit code {exit_code}")
+            else:
+                logger.info("Resampling completed successfully")
     else:
         # Create a symlink to indicate no resampling was done
         final_out_mask_path_resampled = os.path.join(output_folder, "prot_mask_final_resampled.mrc")
