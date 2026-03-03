@@ -195,23 +195,53 @@ def gmm_mask(
     logger.info("Fitting GMM")
 
     # fit the GMM
-    g = mixture.BayesianGaussianMixture(n_components=num_components, max_iter=500, n_init=n_init, tol=1e-2)
-
+    # Use BayesianGaussianMixture for better regularization and uncertainty handling
+    # Note: BayesianGaussianMixture can collapse components via its Dirichlet prior,
+    # so we need to handle cases where fewer components than requested are returned
+    # If components collapse, automatically retry with one extra component
+    
     # Use gradient as feature or not
     if use_grad:
         data_to_fit = data_zoomed if len(non_zero_data) >= 5e6 else data
+        data_to_predict = data
     else:
         data_to_fit = non_zero_data_normalized_zoomed if len(non_zero_data) >= 5e6 else non_zero_data_normalized
-    logger.info(f"Fitting feature shape: {data_to_fit.shape}")
-    g.fit(data_to_fit)
-    logger.info(f"Predicting, feature shape: {data.shape}")
-    preds = g.predict(data)
+        data_to_predict = non_zero_data_normalized
+    
+    # Adaptive component selection: retry with extra component if collapse occurs
+    effective_num_components = num_components
+    max_retries = 1  # Only retry once with one extra component
+    retry_count = 0
+    
+    while retry_count <= max_retries:
+        logger.info(f"Fitting feature shape: {data_to_fit.shape} with {effective_num_components} components")
+        g = mixture.BayesianGaussianMixture(n_components=effective_num_components, max_iter=500, n_init=n_init, tol=1e-2)
+        g.fit(data_to_fit)
+        
+        # Check if Bayesian GMM collapsed any components
+        n_components_found = len(np.unique(g.predict(data_to_fit)))
+        if n_components_found < effective_num_components:
+            logger.warning(f"Bayesian GMM collapsed components: requested {effective_num_components}, found {n_components_found}")
+            if retry_count < max_retries:
+                effective_num_components += 1
+                retry_count += 1
+                logger.info(f"Retrying with {effective_num_components} components")
+                continue
+            else:
+                logger.warning(f"Components still collapsed after retry. Using {n_components_found} components found.")
+        else:
+            logger.info(f"Successfully fitted {n_components_found} components")
+        break
+    
+    logger.info(f"Predicting, feature shape: {data_to_predict.shape}")
+    preds = g.predict(data_to_predict)
 
     # plot the histogram
     if plot_all:
         fig, ax = plt.subplots(1, 1, figsize=(10, 3))
         all_datas = []
-        for pred in np.unique(preds):
+        unique_preds = np.unique(preds)
+        for pred in unique_preds:
             mask = np.zeros_like(map_data)
             mask[np.nonzero(map_data)] = preds == pred
             masked_map_data = map_data * mask
@@ -219,7 +249,8 @@ def gmm_mask(
             all_datas.append(new_data_non_zero.flatten())
             mean = np.mean(new_data_non_zero)
             ax.axvline(mean, linestyle="--", color="k", label=f"Mean_{pred}")
-        labels = [f"Component {i}" for i in range(num_components)]
+        # Use actual number of components found for labels
+        labels = [f"Component {i}" for i in range(len(unique_preds))]
         ax.hist(all_datas, alpha=0.5, bins=256, density=True, log=True, label=labels, stacked=True)
         ax.set_yscale("log")
         ax.legend(loc="upper right")
@@ -232,14 +263,21 @@ def gmm_mask(
     # choose ind that is closest to 0, and ind that has the highest mean
     ind_noise = np.argmin(np.abs(g.means_[:, 0].flatten()))
 
-    logger.debug(f"Means: {g.means_.shape}, {g.means_[:, 0]}, {g.means_[:, 1]}")
+    if use_grad and g.means_.shape[1] > 1:
+        logger.debug(f"Means: {g.means_.shape}, density={g.means_[:, 0]}, gradient={g.means_[:, 1]}")
+    else:
+        logger.debug(f"Means: {g.means_.shape}, density={g.means_[:, 0]}")
 
     # generate a mask to keep only the component without the noise
     mask = np.zeros_like(map_data)
     mask[np.nonzero(map_data)] = preds != ind_noise
 
     noise_comp = map_data[np.nonzero(map_data)][preds == ind_noise]
-    revised_contour = np.max(noise_comp)
+    if noise_comp.size == 0:
+        logger.warning("Bayesian GMM noise component is empty; using minimum non-zero density as revised contour")
+        revised_contour = np.min(map_data[np.nonzero(map_data)])
+    else:
+        revised_contour = np.max(noise_comp)
 
     prot_comp = map_data[np.nonzero(map_data)][preds != ind_noise]
 
@@ -256,16 +294,42 @@ def gmm_mask(
     new_fit_data = gen_features(masked_map_data)
     logger.info(f"Fitting feature shape: {new_fit_data.shape}")
 
-    # fit the GMM again on the new data
-    g2 = mixture.BayesianGaussianMixture(n_components=2, max_iter=500, n_init=n_init, tol=1e-2)
-    g2.fit(new_fit_data)
+    # fit the GMM again on the new data (aggressive masking)
+    # Use adaptive component selection here too
+    effective_num_components_2 = 2
+    max_retries_2 = 1
+    retry_count_2 = 0
+    
+    while retry_count_2 <= max_retries_2:
+        logger.info(f"Fitting second GMM with {effective_num_components_2} components")
+        g2 = mixture.BayesianGaussianMixture(n_components=effective_num_components_2, max_iter=500, n_init=n_init, tol=1e-2)
+        g2.fit(new_fit_data)
+        
+        # Check if components collapsed
+        n_components_found_2 = len(np.unique(g2.predict(new_fit_data)))
+        if n_components_found_2 < effective_num_components_2:
+            logger.warning(f"Second Bayesian GMM collapsed components: requested {effective_num_components_2}, found {n_components_found_2}")
+            if retry_count_2 < max_retries_2:
+                effective_num_components_2 += 1
+                retry_count_2 += 1
+                logger.info(f"Retrying second GMM with {effective_num_components_2} components")
+                continue
+            else:
+                logger.warning(f"Second GMM components still collapsed after retry. Using {n_components_found_2} components found.")
+        else:
+            logger.info(f"Successfully fitted second GMM with {n_components_found_2} components")
+        break
 
     # predict the new data
     new_preds = g2.predict(new_fit_data)
     ind_noise_second = np.argmin(g2.covariances_[:, 0, 0].flatten())
     noise_comp_2 = masked_map_data[np.nonzero(masked_map_data)][new_preds == ind_noise_second]
     prot_comp_2 = masked_map_data[np.nonzero(masked_map_data)][new_preds != ind_noise_second]
-    revised_contour_agg = np.max(noise_comp_2)
+    if noise_comp_2.size == 0:
+        logger.warning("Second Bayesian GMM noise component is empty; using revised_contour from first GMM")
+        revised_contour_agg = revised_contour
+    else:
+        revised_contour_agg = np.max(noise_comp_2)
 
     logger.info(f"Revised contour (Aggressive): {revised_contour_agg:.3f}")
 
