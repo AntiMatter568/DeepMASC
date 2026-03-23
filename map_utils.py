@@ -1,9 +1,11 @@
 import mrcfile
 import numpy as np
 
+
 def is_map_empty(mrc_file):
     # check if the map is empty
     with mrcfile.open(mrc_file, permissive=True) as mrc:
+        assert mrc.data is not None  # type: ignore[union-attr]
         if np.allclose(mrc.data, 0):
             return True
     return False
@@ -24,8 +26,10 @@ def calc_map_ccc(input_mrc, input_pred, center=True, overlap_only=False):
     """
     # Open the MRC files and copy their data
     with mrcfile.open(input_mrc) as mrc:
+        assert mrc.data is not None  # type: ignore[union-attr]
         mrc_data = mrc.data.copy()
     with mrcfile.open(input_pred) as mrc:
+        assert mrc.data is not None  # type: ignore[union-attr]
         pred_data = mrc.data.copy()
 
     # mrc_data = np.where(mrc_data > 1e-8, mrc_data, 0.0)
@@ -50,15 +54,17 @@ def calc_map_ccc(input_mrc, input_pred, center=True, overlap_only=False):
     overlap_percent = np.sum(overlap) / min_count
 
     # Calculate the CCC
-    ccc = np.sum(mrc_data * pred_data) / np.sqrt(np.sum(mrc_data**2) * np.sum(pred_data**2))
+    ccc = np.sum(mrc_data * pred_data) / np.sqrt(
+        np.sum(mrc_data**2) * np.sum(pred_data**2)
+    )
 
     return ccc, overlap_percent
 
 
 """Compute FSC between two volumes, adapted from cryodrgn"""
 import numpy as np
-import torch
-from torch.fft import fftshift, ifftshift, fft2, fftn, ifftn
+import torch  # type: ignore[import-not-found]
+from torch.fft import fftshift, ifftshift, fft2, fftn, ifftn  # type: ignore[import-not-found]
 
 
 def normalize(img, mean=0, std=None, std_n=None):
@@ -134,12 +140,13 @@ def symmetrize_ht(ht):
 
 
 def calculate_fsc(vol1_f, vol2_f, output_f, Apix=1.0, plot=True):
-
     import mrcfile
 
     with mrcfile.open(vol1_f, permissive=True) as v1:
+        assert v1.data is not None  # type: ignore[union-attr]
         vol1 = v1.data.copy()
     with mrcfile.open(vol2_f, permissive=True) as v2:
+        assert v2.data is not None  # type: ignore[union-attr]
         vol2 = v2.data.copy()
 
     assert vol1.shape == vol2.shape
@@ -147,8 +154,16 @@ def calculate_fsc(vol1_f, vol2_f, output_f, Apix=1.0, plot=True):
     # pad if non-cubic
     padding_xyz = np.max(vol1.shape) - vol1.shape
 
-    vol1 = np.pad(vol1, ((0, padding_xyz[0]), (0, padding_xyz[1]), (0, padding_xyz[2])), mode="constant")
-    vol2 = np.pad(vol2, ((0, padding_xyz[0]), (0, padding_xyz[1]), (0, padding_xyz[2])), mode="constant")
+    vol1 = np.pad(
+        vol1,
+        ((0, padding_xyz[0]), (0, padding_xyz[1]), (0, padding_xyz[2])),
+        mode="constant",
+    )
+    vol2 = np.pad(
+        vol2,
+        ((0, padding_xyz[0]), (0, padding_xyz[1]), (0, padding_xyz[2])),
+        mode="constant",
+    )
 
     if vol1.shape[0] % 2 != 0:
         vol1 = np.pad(vol1, ((0, 1), (0, 1), (0, 1)), mode="constant")
@@ -193,7 +208,7 @@ def calculate_fsc(vol1_f, vol2_f, output_f, Apix=1.0, plot=True):
 
     if cutoff_05 is None:
         cutoff_05 = 0.0
-    
+
     w = np.where(fsc < 0.143)
     cutoff_0143 = 1 / x[w[0][0]] * Apix if len(w) > 0 and len(w[0]) > 0 else None
 
@@ -203,57 +218,80 @@ def calculate_fsc(vol1_f, vol2_f, output_f, Apix=1.0, plot=True):
     # Visualization
     if plot:
         import matplotlib.pyplot as plt
-        
+
         # Convert spatial frequency to resolution in Angstroms
-        resolution = 1 / (x * Apix + 1e-10)  # Add small epsilon to avoid division by zero
+        resolution = 1 / (
+            x * Apix + 1e-10
+        )  # Add small epsilon to avoid division by zero
         resolution[0] = np.inf  # Set DC component to infinity
-        
+
         plt.figure(figsize=(10, 6))
-        plt.plot(x[1:], fsc[1:], 'b-', linewidth=2, label='FSC')
-        plt.axhline(y=0.5, color='r', linestyle='--', alpha=0.7, label='FSC = 0.5')
-        plt.axhline(y=0.143, color='orange', linestyle='--', alpha=0.7, label='FSC = 0.143')
-        
+        plt.plot(x[1:], fsc[1:], "b-", linewidth=2, label="FSC")
+        plt.axhline(y=0.5, color="r", linestyle="--", alpha=0.7, label="FSC = 0.5")  # type: ignore[arg-type]
+        plt.axhline(
+            y=0.143,  # type: ignore
+            color="orange",
+            linestyle="--",
+            alpha=0.7,
+            label="FSC = 0.143",
+        )
+
         # Mark resolution cutoffs
         if cutoff_05 > 0:
-            plt.axvline(x=1/(cutoff_05/Apix), color='r', linestyle=':', alpha=0.7)
-            plt.text(1/(cutoff_05/Apix), 0.52, f'{cutoff_05:.1f}Å', 
-                    rotation=90, verticalalignment='bottom', color='r')
-        
+            cutoff_05_freq = float(1 / (cutoff_05 / Apix))
+            plt.axvline(x=cutoff_05_freq, color="r", linestyle=":", alpha=0.7)  # type: ignore
+            plt.text(
+                float(1 / (cutoff_05 / Apix)),
+                0.52,
+                f"{cutoff_05:.1f}Å",
+                rotation=90,
+                verticalalignment="bottom",
+                color="r",
+            )  # type: ignore[arg-type]
+
         if cutoff_0143 > 0:
-            plt.axvline(x=1/(cutoff_0143/Apix), color='orange', linestyle=':', alpha=0.7)
-            plt.text(1/(cutoff_0143/Apix), 0.15, f'{cutoff_0143:.1f}Å', 
-                    rotation=90, verticalalignment='bottom', color='orange')
-        
-        plt.xlabel('Spatial Frequency')
-        plt.ylabel('Fourier Shell Correlation')
-        plt.title('FSC Curve')
+            cutoff_0143_freq = float(1 / (cutoff_0143 / Apix))
+            plt.axvline(x=cutoff_0143_freq, color="orange", linestyle=":", alpha=0.7)  # type: ignore[arg-type]
+            plt.text(
+                float(1 / (cutoff_0143 / Apix)),
+                0.15,
+                f"{cutoff_0143:.1f}Å",
+                rotation=90,
+                verticalalignment="bottom",
+                color="orange",
+            )
+
+        plt.xlabel("Spatial Frequency")
+        plt.ylabel("Fourier Shell Correlation")
+        plt.title("FSC Curve")
         plt.grid(True, alpha=0.3)
         plt.legend()
         plt.ylim(-0.1, 1.1)
         plt.xlim(0, x[-1])
-        
+
         # Add secondary x-axis for resolution
         ax1 = plt.gca()
-        ax2 = ax1.twiny()
-        
+        ax2 = ax1.twiny()  # type: ignore[attr-defined]
+
         # Select reasonable tick positions
         freq_ticks = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
         freq_ticks = freq_ticks[freq_ticks <= x[-1]]
         res_ticks = 1 / (freq_ticks * Apix)
-        
-        ax2.set_xlim(ax1.get_xlim())
+
+        ax2.set_xlim(ax1.get_xlim())  # type: ignore[attr-defined]
         ax2.set_xticks(freq_ticks)
-        ax2.set_xticklabels([f'{r:.1f}' for r in res_ticks])
-        ax2.set_xlabel('Resolution (Å)')
-        
+        ax2.set_xticklabels([f"{r:.1f}" for r in res_ticks])
+        ax2.set_xlabel("Resolution (Å)")
+
         plt.tight_layout()
-        
+
         # Generate plot filename based on output_f
         import os
+
         base_name = os.path.splitext(output_f)[0]
         plot_filename = base_name + "_plot.png"
-        plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
+        plt.savefig(plot_filename, dpi=300, bbox_inches="tight")
         plt.close()  # Close the figure to free memory
         print(f"FSC plot saved to: {plot_filename}")
-    
+
     return x, fsc, cutoff_05, cutoff_0143

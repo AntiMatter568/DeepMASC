@@ -36,7 +36,7 @@
 
 # Provide executable in the gui: python /path/to/gtf_relion4_run_eval_refinement_mask.py
 # Input FSC star file from PostProcess job
-# 
+#
 # Outputs for RELION
 # - mask3d_evaluation.csv
 # - mask3d_evaluation_*.png (FSC curves plot)
@@ -66,10 +66,26 @@ print("This script evaluates refinement mask quality using FSC criteria")
 print("running ...")
 parser = argparse.ArgumentParser()
 # --in_YYY: YYY is the type of the input node: movies, mics, parts, coords, 3dref, or mask,
-parser.add_argument("-i", "--input", "--in_postprocess", type=str, help="RELION requirement! Input PostProcess star file path (relative)")
-parser.add_argument("-o", "--output", type=str, help="RELION requirement! Output job directory path (relative)")
+parser.add_argument(
+    "-i",
+    "--input",
+    "--in_postprocess",
+    type=str,
+    help="RELION requirement! Input PostProcess star file path (relative)",
+)
+parser.add_argument(
+    "-o",
+    "--output",
+    type=str,
+    help="RELION requirement! Output job directory path (relative)",
+)
 parser.add_argument("--plot", type=bool, help="Generate FSC curves plot", default=True)
-parser.add_argument("--debug", type=bool, help="Enable debug mode to generate full output", default=False)
+parser.add_argument(
+    "--debug",
+    type=bool,
+    help="Enable debug mode to generate full output",
+    default=False,
+)
 
 args, unknown = parser.parse_known_args()
 
@@ -86,10 +102,14 @@ print("[GTF_DEBUG] debug_mode          : %s" % debug_mode)
 """<<< VARIABLES"""
 
 """Preparation >>>"""
-assert os.path.exists(inargs_postprocess), f"# Logical Error: Input PostProcess STAR file ({inargs_postprocess}) must exist."
+assert os.path.exists(inargs_postprocess), (
+    f"# Logical Error: Input PostProcess STAR file ({inargs_postprocess}) must exist."
+)
 input_job_dir_rpath, input_postprocess_file_basename = os.path.split(inargs_postprocess)
 print("[GTF_DEBUG] input_job_dir_rpath             : %s" % input_job_dir_rpath)
-print("[GTF_DEBUG] input_postprocess_file_basename : %s" % input_postprocess_file_basename)
+print(
+    "[GTF_DEBUG] input_postprocess_file_basename : %s" % input_postprocess_file_basename
+)
 
 # Ensure output directory exists
 os.makedirs(outargs_rpath, exist_ok=True)
@@ -103,8 +123,8 @@ def parse_star_file(filename):
     """Parse RELION PostProcess star file to extract FSC data"""
     print(f"[GTF_DEBUG] Parsing star file: {filename}")
     df = starfile.read(filename)
-    fsc_df = df["fsc"]
-    fsc_df_data = fsc_df[
+    fsc_df = df["fsc"]  # type: ignore[index]
+    fsc_df_data = fsc_df[  # type: ignore[index]
         [
             "rlnAngstromResolution",
             "rlnFourierShellCorrelationUnmaskedMaps",
@@ -113,13 +133,13 @@ def parse_star_file(filename):
             "rlnFourierShellCorrelationCorrected",
         ]
     ]
-    return fsc_df_data.to_numpy()
+    return fsc_df_data.to_numpy()  # type: ignore[union-attr]
 
 
 def evaluate_mask3d(data):
     """Evaluate if the Mask3D meets the criteria of Method C"""
     print("[GTF_DEBUG] Evaluating mask3D criteria...")
-    
+
     # Extract data columns
     resolution = data[:, 0]
     unmasked_fsc = data[:, 1]
@@ -168,15 +188,23 @@ def evaluate_mask3d(data):
     criterion_met = phase_rand_zero_res >= unmasked_res_0_5
 
     print(f"[GTF_DEBUG] Resolution (FSC=0.5) without mask: {unmasked_res_0_5:.3f} Å")
-    print(f"[GTF_DEBUG] First zero crossing of phase randomized FSC: {phase_rand_zero_res:.3f} Å")
-    print(f"[GTF_DEBUG] Resolution (FSC=0.143) with corrected FSC: {corrected_res_0_143:.3f} Å")
-    
+    print(
+        f"[GTF_DEBUG] First zero crossing of phase randomized FSC: {phase_rand_zero_res:.3f} Å"
+    )
+    print(
+        f"[GTF_DEBUG] Resolution (FSC=0.143) with corrected FSC: {corrected_res_0_143:.3f} Å"
+    )
+
     if criterion_met:
-        print("[GTF_DEBUG] ✓ PASS: The first zero crossing of the Phase Randomized FSC Curve is LOWER than")
+        print(
+            "[GTF_DEBUG] ✓ PASS: The first zero crossing of the Phase Randomized FSC Curve is LOWER than"
+        )
         print("[GTF_DEBUG]   the FSC resolution with 0.5 criteria without any Mask3D.")
         print(f"[GTF_DEBUG]   ({phase_rand_zero_res:.3f} Å > {unmasked_res_0_5:.3f} Å)")
     else:
-        print("[GTF_DEBUG] ✗ FAIL: The first zero crossing of the Phase Randomized FSC Curve is HIGHER than")
+        print(
+            "[GTF_DEBUG] ✗ FAIL: The first zero crossing of the Phase Randomized FSC Curve is HIGHER than"
+        )
         print("[GTF_DEBUG]   the FSC resolution with 0.5 criteria without any Mask3D.")
         print(f"[GTF_DEBUG]   ({phase_rand_zero_res:.3f} Å ≤ {unmasked_res_0_5:.3f} Å)")
 
@@ -193,99 +221,110 @@ def evaluate_mask3d(data):
 
 
 def plot_fsc_curves(data, results, filename, save_dir):
-    """Plot the FSC curves for visualization with resolution reciprocal (1/Å) on the x-axis"""
     print("[GTF_DEBUG] Generating FSC curves plot...")
-    
+
     resolution = data[:, 0]
     unmasked_fsc = data[:, 1]
     masked_fsc = data[:, 2]
     phase_rand_fsc = data[:, 3]
     corrected_fsc = data[:, 4]
 
-    # Convert resolution in Å to resolution reciprocal in 1/Å
     resolution_reciprocal = 1.0 / resolution
 
-    # Set seaborn style
     sns.set(style="whitegrid")
-
-    # Create figure with seaborn styling
-    plt.figure(figsize=(10, 6))
-
-    # Create a color palette
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    assert isinstance(ax1, plt.Axes)
     palette = sns.color_palette("deep")
 
-    # Plot FSC curves using seaborn
-    sns.lineplot(x=resolution_reciprocal, y=unmasked_fsc, color=palette[0], label="Unmasked FSC")
-    sns.lineplot(x=resolution_reciprocal, y=masked_fsc, color=palette[1], label="Masked FSC")
-    sns.lineplot(x=resolution_reciprocal, y=phase_rand_fsc, color=palette[2], label="Phase Randomized FSC")
-    sns.lineplot(x=resolution_reciprocal, y=corrected_fsc, color=palette[3], label="Corrected FSC")
+    ax1.plot(
+        resolution_reciprocal, unmasked_fsc, color=palette[0], label="Unmasked FSC"
+    )
+    ax1.plot(resolution_reciprocal, masked_fsc, color=palette[1], label="Masked FSC")
+    ax1.plot(
+        resolution_reciprocal,
+        phase_rand_fsc,
+        color=palette[2],
+        label="Phase Randomized FSC",
+    )
+    ax1.plot(
+        resolution_reciprocal, corrected_fsc, color=palette[3], label="Corrected FSC"
+    )
 
-    # Add horizontal lines at thresholds
-    plt.axhline(y=0.5, color=palette[0], linestyle="--", alpha=0.5)
-    plt.axhline(y=0.143, color=palette[3], linestyle="--", alpha=0.5)
-    plt.axhline(y=0.0, color=palette[2], linestyle="--", alpha=0.5)
+    ax1.axhline(y=0.5, color=palette[0], linestyle="--", alpha=0.5)  # type: ignore[arg-type]
+    ax1.axhline(y=0.143, color=palette[3], linestyle="--", alpha=0.5)  # type: ignore[arg-type]
+    ax1.axhline(y=0.0, color=palette[2], linestyle="--", alpha=0.5)  # type: ignore[arg-type]
 
-    # Add vertical lines at key resolutions (in reciprocal space)
     unmasked_res_0_5_recip = 1.0 / results["unmasked_res_0_5"]
     phase_rand_zero_res_recip = 1.0 / results["phase_rand_zero_res"]
     corrected_res_0_143_recip = 1.0 / results["corrected_res_0_143"]
 
-    plt.axvline(x=unmasked_res_0_5_recip, color=palette[0], linestyle=":", alpha=0.7)
-    plt.axvline(x=phase_rand_zero_res_recip, color=palette[2], linestyle=":", alpha=0.7)
-    plt.axvline(x=corrected_res_0_143_recip, color=palette[3], linestyle=":", alpha=0.7)
+    ax1.axvline(x=unmasked_res_0_5_recip, color=palette[0], linestyle=":", alpha=0.7)
+    ax1.axvline(x=phase_rand_zero_res_recip, color=palette[2], linestyle=":", alpha=0.7)
+    ax1.axvline(x=corrected_res_0_143_recip, color=palette[3], linestyle=":", alpha=0.7)
 
-    # Add annotations for key resolutions
-    plt.annotate(
+    ax1.annotate(
         f"{results['unmasked_res_0_5']:.2f} Å (FSC=0.5 unmasked)",
         xy=(unmasked_res_0_5_recip, 0.5),
         xytext=(unmasked_res_0_5_recip + 0.01, 0.6),
         arrowprops=dict(arrowstyle="->"),
     )
-
-    plt.annotate(
+    ax1.annotate(
         f"{results['phase_rand_zero_res']:.2f} Å (Phase Rand. Zero)",
         xy=(phase_rand_zero_res_recip, 0.0),
         xytext=(phase_rand_zero_res_recip + 0.01, 0.1),
         arrowprops=dict(arrowstyle="->"),
     )
-
-    plt.annotate(
+    ax1.annotate(
         f"{results['corrected_res_0_143']:.2f} Å (FSC=0.143 corrected)",
         xy=(corrected_res_0_143_recip, 0.143),
         xytext=(corrected_res_0_143_recip + 0.01, 0.25),
         arrowprops=dict(arrowstyle="->"),
     )
 
-    # Add pass/fail status
+    x_max = max(resolution_reciprocal) * 1.1
+    ax1.set_xlim(0, x_max)
+    ax1.set_ylim(-0.1, 1.1)
+    ax1.set_xlabel("Spatial Frequency (1/Å)", fontsize=12)
+    ax1.set_ylabel("Fourier Shell Correlation", fontsize=12)
+    ax1.legend(loc="upper right")
+
+    ax2 = ax1.twiny()
+    resolution_ticks_angstrom = np.array([50, 20, 10, 7, 5, 4, 3.5, 3, 2.5, 2, 1.5])
+    resolution_ticks_recip = 1.0 / resolution_ticks_angstrom
+    within_range = resolution_ticks_recip <= x_max
+    resolution_ticks_angstrom = resolution_ticks_angstrom[within_range]
+    resolution_ticks_recip = resolution_ticks_recip[within_range]
+    ax2.set_xlim(ax1.get_xlim())
+    ax2.set_xticks(resolution_ticks_recip)
+    ax2.set_xticklabels([f"{r:g}" for r in resolution_ticks_angstrom])
+    ax2.set_xlabel("Resolution (Å)", fontsize=12)
+
     status = "PASS" if results["criterion_met"] else "FAIL"
-    plt.title(f"FSC Curves Evaluation - {status} - {os.path.basename(filename)}", fontsize=14)
+    ax1.set_title(
+        f"FSC Curves Evaluation - {status} - {os.path.basename(filename)}",
+        fontsize=14,
+        pad=30,
+    )
 
-    plt.xlabel("Resolution (1/Å)", fontsize=12)
-    plt.ylabel("Fourier Shell Correlation", fontsize=12)
-    plt.legend(loc="upper right")
-
-    # Set x-axis limits in reciprocal space (resolution increases from left to right)
-    plt.xlim(0, max(resolution_reciprocal) * 1.1)
-    plt.ylim(-0.1, 1.1)
-
-    # Add context to the plot
     sns.despine(left=False, bottom=False)
+    assert isinstance(fig, plt.Figure)
+    fig.tight_layout()
+    fig_save_name = f"mask3d_evaluation_{os.path.basename(filename).split('.')[0]}.png"
+    fig.savefig(os.path.join(save_dir, fig_save_name), dpi=300, bbox_inches="tight")
+    print(
+        f"[GTF_DEBUG] FSC curves plot saved as {os.path.join(save_dir, fig_save_name)}"
+    )
+    plt.close(fig)
 
-    plt.tight_layout()
-    fig_save_name = f'mask3d_evaluation_{os.path.basename(filename).split(".")[0]}.png'
-    plt.savefig(os.path.join(save_dir, fig_save_name), dpi=300)
-    print(f"[GTF_DEBUG] FSC curves plot saved as {os.path.join(save_dir, fig_save_name)}")
-    plt.close()  # Close the figure to free memory
-    
     return fig_save_name
 
 
 def create_summary_star_file(results, output_dir):
     """Create a RELION-compatible summary star file"""
     print("[GTF_DEBUG] Creating summary star file...")
-    
+
     summary_file = os.path.join(output_dir, "mask_evaluation_summary.star")
-    
+
     with open(summary_file, "w") as f:
         f.write("\n")
         f.write("# version 30001\n")
@@ -297,11 +336,13 @@ def create_summary_star_file(results, output_dir):
         f.write("_rlnMaskEvaluationPhaseRandZeroRes #3\n")
         f.write("_rlnMaskEvaluationCorrectedRes0143 #4\n")
         f.write("_rlnMaskEvaluationValid #5\n")
-        f.write(f"{int(results['criterion_met'])} {results['unmasked_res_0_5']:.6f} "
-                f"{results['phase_rand_zero_res']:.6f} {results['corrected_res_0_143']:.6f} "
-                f"{int(results['valid'])}\n")
+        f.write(
+            f"{int(results['criterion_met'])} {results['unmasked_res_0_5']:.6f} "
+            f"{results['phase_rand_zero_res']:.6f} {results['corrected_res_0_143']:.6f} "
+            f"{int(results['valid'])}\n"
+        )
         f.write("\n")
-    
+
     print(f"[GTF_DEBUG] Summary star file saved as {summary_file}")
     return "mask_evaluation_summary.star"
 
@@ -343,7 +384,9 @@ print("[GTF_DEBUG] Evaluation completed successfully")
 print("[GTF_DEBUG] Creating RELION output files...")
 
 # Create RELION_OUTPUT_NODES.star file
-relion_output_nodes_star_file = open(os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"), "w")
+relion_output_nodes_star_file = open(
+    os.path.join(outargs_rpath, "RELION_OUTPUT_NODES.star"), "w"
+)
 relion_output_nodes_star_file.write("\n")
 relion_output_nodes_star_file.write("# version 30001\n")
 relion_output_nodes_star_file.write("data_output_nodes\n")
@@ -351,16 +394,24 @@ relion_output_nodes_star_file.write("\n")
 relion_output_nodes_star_file.write("loop_\n")
 relion_output_nodes_star_file.write("_rlnPipeLineNodeName #1 \n")
 relion_output_nodes_star_file.write("_rlnPipeLineNodeTypeLabel #2 \n")
-relion_output_nodes_star_file.write(f"{os.path.join(outargs_rpath, 'mask3d_evaluation.csv')} Text.txt \n")
-relion_output_nodes_star_file.write(f"{os.path.join(outargs_rpath, summary_star_filename)} LogFile.star \n")
+relion_output_nodes_star_file.write(
+    f"{os.path.join(outargs_rpath, 'mask3d_evaluation.csv')} Text.txt \n"
+)
+relion_output_nodes_star_file.write(
+    f"{os.path.join(outargs_rpath, summary_star_filename)} LogFile.star \n"
+)
 if plot_filename:
-    relion_output_nodes_star_file.write(f"{os.path.join(outargs_rpath, plot_filename)} Image.png \n")
+    relion_output_nodes_star_file.write(
+        f"{os.path.join(outargs_rpath, plot_filename)} Image.png \n"
+    )
 relion_output_nodes_star_file.write("\n")
 relion_output_nodes_star_file.close()
 
 # Create RELION_JOB_EXIT_SUCCESS file
-relion_job_exit_status_file = open(os.path.join(outargs_rpath, "RELION_JOB_EXIT_SUCCESS"), "w")
+relion_job_exit_status_file = open(
+    os.path.join(outargs_rpath, "RELION_JOB_EXIT_SUCCESS"), "w"
+)
 relion_job_exit_status_file.close()
 
 print("[GTF_DEBUG] Done")
-"""<<< Finishing up""" 
+"""<<< Finishing up"""
