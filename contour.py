@@ -82,6 +82,32 @@ def run_cryoREAD(mrc_path, output_folder, batch_size=8, gpu_id=None, contour_lev
         return False
 
 
+def _cleanup_cryoread_intermediates(output_folder):
+    """Remove CryoREAD intermediate prediction directories after refinement mask generation."""
+    cleaned_size = 0
+
+    for dirname in ("1st_stage_detection", "2nd_stage_detection"):
+        dirpath = os.path.join(output_folder, dirname)
+        if os.path.isdir(dirpath):
+            cleaned_size += _dir_size(dirpath)
+            shutil.rmtree(dirpath)
+            logger.info(f"Removed {dirpath}")
+
+    cleaned_mb = cleaned_size / (1024 * 1024)
+    logger.info(f"CryoREAD intermediate cleanup freed {cleaned_mb:.1f} MB")
+
+
+def _dir_size(path):
+    """Return total size of all files in a directory tree in bytes."""
+    total = 0
+    for dirpath, _dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if os.path.isfile(fp):
+                total += os.path.getsize(fp)
+    return total
+
+
 def _load_revised_contour_from_txt(txt_path, aggressive=False):
     """Load revised contour value from gmm_mask output txt file. Returns (revised_contour, mask_percent) or None if parse fails."""
     try:
@@ -276,6 +302,13 @@ def gmm_mask(
                 revised_contour = np.min(map_data[np.nonzero(map_data)])
                 break
         else:
+            revised_contour = np.max(noise_comp)
+            if revised_contour < 0 and retry_count < max_retries:
+                logger.warning(f"Revised contour ({revised_contour:.4f}) is negative; retrying with extra component")
+                effective_num_components += 1
+                retry_count += 1
+                logger.info(f"Retrying with {effective_num_components} components")
+                continue
             break
 
     # plot the histogram
@@ -561,3 +594,7 @@ if __name__ == "__main__":
         if os.path.exists(final_out_mask_path_resampled):
             os.remove(final_out_mask_path_resampled)
         os.symlink(os.path.abspath(final_out_mask_path), final_out_mask_path_resampled)
+
+    # Clean up CryoREAD intermediate prediction files
+    if args.refinement_mask:
+        _cleanup_cryoread_intermediates(output_folder)
