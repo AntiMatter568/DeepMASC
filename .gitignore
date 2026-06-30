@@ -25,6 +25,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+test*/
+*.map
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -172,7 +174,19 @@ CryoREAD/test_cryoread_22647/
 CryoREAD/test_cryoread_26363/
 CryoREAD/job019_run_it050_class001/
 CryoREAD/job052_run_it100_class003/
+10891_final/
+10891_run_it200_class002_ref/
+21992_results/
+emd_0469_results/
+emd_8722_results/
+example_relion_tutorial_class3d_select/
+example_relion_tutorial_initial_model_select/
+GMM_CLASS2_10891/
+tanabe_class2/
+temp/
 
 # pixi lock files
 .pixi/
 pixi.lock
+conda_env/
+examples/

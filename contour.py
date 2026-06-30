@@ -91,8 +91,54 @@ def run_cryoREAD(
 
 
 def _cleanup_cryoread_intermediates(output_folder):
-    """Remove CryoREAD intermediate prediction directories after refinement mask generation."""
+    """Remove CryoREAD intermediate prediction directories after refinement mask generation.
+
+    The per-voxel protein-probability map (2nd_stage_detection/chain_protein_prob.mrc) is
+    preserved by copying it to the top-level output folder before cleanup, so the refinement
+    mask can be re-thresholded at a different cutoff_prob later without re-running CryoREAD.
+    """
     cleaned_size = 0
+
+    # Preserve the per-class probability maps (small) before deleting the bulky
+    # intermediates, so the refinement mask can be re-thresholded later without
+    # re-running CryoREAD. Keep the protein channel and a nucleic-acid aggregate
+    # (sum of the 7 non-protein CryoREAD classes) so complex-aware (protein+nucleic)
+    # masks can also be built later.
+    stage = os.path.join(output_folder, "2nd_stage_detection")
+    prob_src = os.path.join(stage, "chain_protein_prob.mrc")
+    prob_dst = os.path.join(output_folder, "chain_protein_prob.mrc")
+    if os.path.exists(prob_src) and not os.path.exists(prob_dst):
+        shutil.copy2(prob_src, prob_dst)
+        logger.info(f"Preserved protein-probability map -> {prob_dst}")
+
+    nuc_classes = ["sugar", "phosphate", "A", "UT", "C", "G", "base"]
+    nuc_dst = os.path.join(output_folder, "chain_nucleic_prob.mrc")
+    if os.path.exists(prob_src) and not os.path.exists(nuc_dst):
+        try:
+            nuc_sum = None
+            ref_voxel = ref_origin = ref_cella = None
+            for cls in nuc_classes:
+                p = os.path.join(stage, f"chain_{cls}_prob.mrc")
+                if not os.path.exists(p):
+                    continue
+                with mrcfile.open(p, permissive=True) as m:
+                    arr = m.data.astype("float32").copy()  # type: ignore[union-attr]
+                    if ref_voxel is None:
+                        ref_voxel = float(m.voxel_size.x)
+                        ref_origin = tuple(float(x) for x in (m.header.origin.x, m.header.origin.y, m.header.origin.z))
+                        ref_cella = (float(m.header.cella.x), float(m.header.cella.y), float(m.header.cella.z))
+                nuc_sum = arr if nuc_sum is None else nuc_sum + arr
+            if nuc_sum is not None:
+                import numpy as _np
+                nuc_sum = _np.clip(nuc_sum, 0.0, 1.0).astype("float32")
+                with mrcfile.new(nuc_dst, data=nuc_sum, overwrite=True) as m:
+                    m.voxel_size = (ref_voxel, ref_voxel, ref_voxel)
+                    m.header.origin = ref_origin
+                    m.header.cella = ref_cella
+                    m.update_header_stats()
+                logger.info(f"Preserved nucleic-probability aggregate -> {nuc_dst}")
+        except Exception as exc:
+            logger.warning(f"Could not build nucleic-probability aggregate: {exc}")
 
     for dirname in ("1st_stage_detection", "2nd_stage_detection"):
         dirpath = os.path.join(output_folder, dirname)
@@ -512,6 +558,29 @@ def gmm_mask(
 
     logger.info(f"Revised contour (Aggressive): {revised_contour_agg:.3f}")
 
+    # plot the second (aggressive) GMM decomposition: stacked histogram by component
+    if plot_all:
+        fig, ax = plt.subplots(figsize=(10, 3))  # type: ignore
+        md = masked_map_data[np.nonzero(masked_map_data)]
+        uniq = np.unique(new_preds)
+        comps = [md[new_preds == k] for k in uniq]
+        labels = ["trimmed (lower-variance)" if k == ind_noise_second else "core protein" for k in uniq]
+        colors = ["#8A8A8A" if k == ind_noise_second else "#009E73" for k in uniq]
+        ax.hist(comps, bins=256, density=True, log=True, stacked=True, alpha=0.7,
+                label=labels, color=colors)  # type: ignore[attr-defined]
+        ax.axvline(revised_contour, ls="--", color="k", lw=1.5, label="Conservative")  # type: ignore[attr-defined]
+        ax.axvline(revised_contour_agg, ls=":", color="#D55E00", lw=2, label="Aggressive")  # type: ignore[attr-defined]
+        ax.set_yscale("log")  # type: ignore[attr-defined]
+        ax.legend(loc="upper right")  # type: ignore[attr-defined]
+        ax.set_xlabel("Map Density Value")  # type: ignore[attr-defined]
+        ax.set_ylabel("Density (log scale)")  # type: ignore[attr-defined]
+        ax.set_title("Aggressive re-fit: stacked histogram by component")  # type: ignore[attr-defined]
+        fig.tight_layout()  # type: ignore[attr-defined]
+        fig.savefig(  # type: ignore[attr-defined]
+            os.path.join(output_folder, Path(input_map_path).stem + "_hist_aggressive_by_components.png")
+        )
+        plt.close(fig)
+
     mask_percent = np.count_nonzero(masked_map_data > 1e-8) / np.count_nonzero(
         map_data > 1e-8
     )
@@ -677,8 +746,8 @@ if __name__ == "__main__":
         "-c",
         "--cutoff_prob",
         type=float,
-        default=0.3,
-        help="The cutoff probability for the mask if using CryoREAD mask, default is 0.3",
+        default=0.5,
+        help="The cutoff probability for the CryoREAD refinement mask, default is 0.5",
     )
     parser.add_argument(
         "--resume",
@@ -741,13 +810,22 @@ if __name__ == "__main__":
         )
 
     if args.refinement_mask:
-        cryoread_prob_path = os.path.join(
+        # The protein-probability map may live in the CryoREAD intermediate dir (fresh run)
+        # or at the top level (preserved by _cleanup_cryoread_intermediates on a prior run).
+        prob_in_stage = os.path.join(
             output_folder, "2nd_stage_detection", "chain_protein_prob.mrc"
         )
-        if args.resume and os.path.exists(cryoread_prob_path):
+        prob_preserved = os.path.join(output_folder, "chain_protein_prob.mrc")
+        existing_prob = (
+            prob_in_stage if os.path.exists(prob_in_stage)
+            else prob_preserved if os.path.exists(prob_preserved)
+            else None
+        )
+        if args.resume and existing_prob is not None:
             logger.info(
-                f"Resuming: skipping CryoREAD, using existing {cryoread_prob_path}"
+                f"Resuming: skipping CryoREAD, using existing {existing_prob}"
             )
+            cryoread_prob_path = existing_prob
         else:
             if not run_cryoREAD(
                 mrc_path=input_map_path,
@@ -759,14 +837,10 @@ if __name__ == "__main__":
             ):
                 logger.error("CryoREAD failed to run, please check the log file")
                 exit(1)
+            cryoread_prob_path = prob_in_stage
 
         # load the mask
-        with mrcfile.open(
-            os.path.join(
-                output_folder, "2nd_stage_detection", "chain_protein_prob.mrc"
-            ),
-            permissive=True,
-        ) as mrc:
+        with mrcfile.open(cryoread_prob_path, permissive=True) as mrc:
             protein_prob = mrc.data.copy()  # type: ignore[union-attr]
             # binarize the protein probability map
             protein_prob = protein_prob > args.cutoff_prob
@@ -775,8 +849,32 @@ if __name__ == "__main__":
         mask = opening(protein_prob.astype(bool), ball(args.morph_radius))
         mask = closing(mask.astype(bool), ball(args.morph_radius))
 
-        # save the mask
-        save_mrc(os.path.join(output_folder, "input.mrc"), mask, final_out_mask_path)
+        # Density-contour fix: CryoREAD predicts protein-probability over the whole
+        # density>0 region (segment_map runs with contour=0), not the input contour,
+        # so it can place spurious "floating blobs" in low-density solvent. Drop mask
+        # voxels at or below the VBGMM conservative contour (revised_contour) to remove
+        # those solvent floaters, while keeping all genuine protein density (any number
+        # of separate domains/chains — no single-connected-component assumption).
+        seg_path = os.path.join(output_folder, "input_segment.mrc")
+        if os.path.exists(seg_path):
+            with mrcfile.open(seg_path, permissive=True) as seg_mrc:
+                seg_data = seg_mrc.data  # type: ignore[union-attr]
+                if seg_data.shape == mask.shape:
+                    mask = mask & (seg_data > revised_contour)
+                else:
+                    logger.warning(
+                        "input_segment grid %s != mask grid %s; skipping density-contour fix",
+                        seg_data.shape, mask.shape,
+                    )
+        else:
+            logger.warning("input_segment.mrc not found; skipping density-contour fix")
+
+        # save the mask. Use mask_protein.mrc as header source (NOT input.mrc):
+        # mask_protein.mrc has the correct crop-offset origin propagated from
+        # segment_map; input.mrc is the full uncropped input with origin=(0,0,0)
+        # and would cause Chimera resample to place the sub-box at the wrong
+        # global position. See investigation of DEEPMASC alignment bug 2026-05-14.
+        save_mrc(os.path.join(output_folder, "mask_protein.mrc"), mask, final_out_mask_path)
 
     else:
         if args.aggressive:
@@ -830,6 +928,10 @@ if __name__ == "__main__":
                 )
             else:
                 logger.info("Resampling completed successfully")
+
+        with mrcfile.open(final_out_mask_path_resampled, mode="r+") as mrc:
+            mrc.set_data((mrc.data > 0.5).astype(np.float32))  # type: ignore[union-attr]
+        logger.info("Re-binarized resampled mask at threshold 0.5")
     else:
         # Create a symlink to indicate no resampling was done
         final_out_mask_path_resampled = os.path.join(
