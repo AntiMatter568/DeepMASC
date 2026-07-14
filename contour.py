@@ -917,10 +917,10 @@ if __name__ == "__main__":
             logger.info(f"Running chimera resampling command: {' '.join(cmd)}")
             try:
                 exit_code = run_subprocess_realtime(
-                    cmd, timeout=300
-                )  # 5 minutes timeout for Chimera
+                    cmd, timeout=1200
+                )  # 20 minutes timeout for Chimera (large maps resample slowly)
             except subprocess.TimeoutExpired:
-                logger.error("Chimera resampling timed out after 300 seconds")
+                logger.error("Chimera resampling timed out after 1200 seconds")
                 raise ValueError("# Logical Error: Chimera resampling timed out")
 
             if exit_code != 0:
