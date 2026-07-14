@@ -359,7 +359,8 @@ def gmm_mask(
             f"Fitting feature shape: {data_to_fit.shape} with {effective_num_components} components"  # type: ignore[union-attr]
         )
         g = mixture.BayesianGaussianMixture(
-            n_components=effective_num_components, max_iter=500, n_init=n_init, tol=1e-2
+            n_components=effective_num_components, max_iter=500, n_init=n_init, tol=1e-2,
+            random_state=0,
         )
         g.fit(data_to_fit)
 
@@ -508,6 +509,7 @@ def gmm_mask(
             max_iter=500,
             n_init=n_init,
             tol=1e-2,
+            random_state=0,
         )
         g2.fit(new_fit_data)
 
