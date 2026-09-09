@@ -763,6 +763,15 @@ if __name__ == "__main__":
     if args.refinement_mask and args.gpu_id is None:
         parser.error("-g/--gpu_id is required when -r/--refinement_mask is specified")
 
+    # Fail fast: Chimera resampling runs only after GMM + CryoREAD. Missing
+    # binary would otherwise waste that work (https://github.com/AntiMatter568/DeepMASC/issues/24).
+    if args.refinement_mask and shutil.which("chimera") is None:
+        parser.error(
+            "UCSF Chimera is required for -r/--refinement_mask (mask resampling) "
+            "but 'chimera' was not found in PATH. Install Chimera and ensure the "
+            "command is available (activate the Chimera environment or add it to PATH)."
+        )
+
     final_out_mask_path = os.path.join(args.output_folder, "prot_mask_final.mrc")
 
     input_map_path = os.path.abspath(args.input_map_path)
