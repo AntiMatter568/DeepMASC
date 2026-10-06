@@ -42,7 +42,7 @@ On the voxel grid, as `relion_mask_create` does it, the padding is the set of vo
 
 ## Equivalence with RELION
 
-The soft mask is computed with a Euclidean distance transform instead of RELION's cube search, and reproduces RELION 5.0.1 `autoMask`, including its initial squared distance of 9999 (which matters for widths of 100 px and more). Against `relion_mask_create` on four generated low-resolution masks (boxes 100 to 144, 6 cases each: pixel width, Å width, padding in px and in Å, both presets), the largest absolute difference is 6e-8 and no voxel differs by more than 1e-6. The cost of the distance transform does not depend on the width. On a box of 100 the command takes about 1 s at widths of 3, 10 and 30 px; `relion_mask_create` with 8 threads takes 0.13, 1.8 and 34 s. The comparison and its data are kept with the project notes (`research/soft-edge-cli-parity`).
+The soft mask is computed with a Euclidean distance transform instead of RELION's cube search, and reproduces RELION 5.0.1 `autoMask`, including its initial squared distance of 9999 (which matters for widths of 100 px and more). Against `relion_mask_create` on four generated low-resolution masks (boxes 100 to 144, 6 cases each: pixel width, Å width, padding in px and in Å, both presets), the largest absolute difference is 6e-8 and no voxel differs by more than 1e-6. The cost of the distance transform does not depend on the width. On a box of 100 the command takes about 1 s at widths of 3, 10 and 30 px; `relion_mask_create` with 8 threads takes 0.13, 1.8 and 34 s.
 
 ## RELION External job
 
