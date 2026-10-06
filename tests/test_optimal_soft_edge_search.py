@@ -132,3 +132,98 @@ def test_extension_option_pads_the_mask(inputs, tmp_path, fake_postprocess):
     with mrcfile.open(r["optimal_mask_path"]) as f:
         assert (np.asarray(f.data) == 1).sum() > 6 ** 3
     assert r["optimal_extend_inimask"] == 2
+
+
+# PRFSC criterion options in the search. Hand-worked on the fixture curves of test_eval_refinement_mask_prfsc:
+# the masked 0.143 reference is shell 3 (5.0 A) and the unmasked 0.5 reference is shell 2 (6.0 A).
+# The fake postprocess puts the phase-randomised zero at a shell that depends on the width:
+PR_AT_SHELL = {
+    1: [0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    2: [0.9, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    3: PHASE_RAND,
+    4: FINER,
+}
+
+
+@pytest.fixture
+def big_inputs(tmp_path):
+    """A 48-voxel box with a 6-voxel cube 21 voxels from every face: widths up to 20 px stay off the box faces."""
+    d = tmp_path / "in"
+    d.mkdir()
+    m = np.zeros((48, 48, 48), np.float32)
+    m[21:27, 21:27, 21:27] = 1
+    with mrcfile.new(d / "emd_1_mask.mrc") as f:
+        f.set_data(m)
+    for name in ("emd_1_half1.map", "emd_1_half2.map"):
+        with mrcfile.new(d / name) as f:
+            f.set_data(np.zeros((48, 48, 48), np.float32))
+    return d
+
+
+@pytest.fixture
+def pr_zero_by_width(monkeypatch):
+    """relion_postprocess replaced by a star writer: shell of the phase-randomised zero per width."""
+    calls = []
+
+    def run(shell_by_width):
+        def fake(mask, half1, out_root, angpix, relion_bin=None):
+            width = int(os.path.basename(os.path.dirname(mask)).split("_")[-1])
+            calls.append(width)
+            write_star(os.path.dirname(out_root), phase_rand=PR_AT_SHELL[shell_by_width.get(width, 4)],
+                       name=os.path.basename(out_root) + ".star")
+            return True
+        monkeypatch.setattr(ose, "run_postprocess", fake)
+        return calls
+    return run
+
+
+SHELLS = {5: 3, 10: 2, 15: 1}      # zero moves one shell coarser with every 5 px
+
+
+def test_default_criterion_is_unchanged_and_recorded(big_inputs, tmp_path, pr_zero_by_width):
+    pr_zero_by_width(SHELLS)
+    r = search(big_inputs, tmp_path)
+    assert r["optimal_soft_edge_width"] == 5 and r["prfsc_pass"] is True
+    assert (r["reference_fsc"], r["reference_threshold"], r["margin_shells"]) == ("masked", 0.143, 0)
+
+
+@pytest.mark.parametrize("margin, narrowest", [(0, 5), (1, 10), (2, 15)])
+def test_margin_gives_the_narrowest_passing_width(big_inputs, tmp_path, pr_zero_by_width, margin, narrowest):
+    calls = pr_zero_by_width(SHELLS)
+    r = search(big_inputs, tmp_path, margin_shells=margin)
+    assert r["optimal_soft_edge_width"] == narrowest and r["prfsc_pass"] is True
+    assert calls == list(range(5, narrowest + 1, 5))
+    assert [w["width"] for w in r["widths_tried"]] == calls
+    assert r["margin_shells"] == margin
+
+
+def test_unmasked_half_reference_changes_the_chosen_width(big_inputs, tmp_path, pr_zero_by_width):
+    # unmasked 0.5 reference is shell 2: the zero at shell 3 (5 px) fails, shell 2 (10 px) passes
+    calls = pr_zero_by_width(SHELLS)
+    r = search(big_inputs, tmp_path, reference_fsc="unmasked", reference_threshold=0.5)
+    assert r["optimal_soft_edge_width"] == 10 and calls == [5, 10]
+    assert (r["reference_fsc"], r["reference_threshold"]) == ("unmasked", 0.5)
+    assert r["optimal_reference_res"] == 6.0
+
+
+def test_options_reach_the_per_width_rows_and_summary_file(big_inputs, tmp_path, pr_zero_by_width):
+    pr_zero_by_width(SHELLS)
+    search(big_inputs, tmp_path, margin_shells=1)
+    summary = json.loads((tmp_path / "out" / "emd_1_mask_optimal_mask_summary.json").read_text())
+    assert summary["margin_shells"] == 1 and summary["reference_fsc"] == "masked"
+    assert summary["widths_tried"][0]["margin_shells"] == 1
+
+
+def test_resume_does_not_reuse_widths_evaluated_under_another_criterion(big_inputs, tmp_path, pr_zero_by_width):
+    calls = pr_zero_by_width(SHELLS)
+    search(big_inputs, tmp_path)                              # default criterion: width 5 passes
+    r = search(big_inputs, tmp_path, margin_shells=1)         # width 5 must be evaluated again, now failing
+    assert calls == [5, 5, 10]
+    assert r["optimal_soft_edge_width"] == 10
+
+
+def test_no_passing_width_under_a_strict_criterion(big_inputs, tmp_path, pr_zero_by_width):
+    pr_zero_by_width(SHELLS)
+    r = search(big_inputs, tmp_path, margin_shells=3)         # needs the zero at shell 0, never reached
+    assert r["prfsc_pass"] is False and r["no_passing_width"] is True and r["stop_reason"] == "box_edge"
+    assert r["optimal_soft_edge_width"] == 25

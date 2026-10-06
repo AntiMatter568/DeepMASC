@@ -53,7 +53,12 @@ import os
 import sys
 import pandas as pd
 
-from eval_refinement_mask import evaluate_mask3d, parse_star_file, plot_fsc_curves
+from eval_refinement_mask import (
+    add_criterion_arguments,
+    evaluate_mask3d,
+    parse_star_file,
+    plot_fsc_curves,
+)
 
 """<<< Import"""
 
@@ -86,17 +91,25 @@ parser.add_argument(
     default=False,
 )
 
+add_criterion_arguments(parser)
+
 args, unknown = parser.parse_known_args()
 
 inargs_postprocess = args.input
 outargs_rpath = args.output
 enable_plot = args.plot
 debug_mode = args.debug
+reference_fsc = args.reference_fsc
+reference_threshold = args.reference_threshold
+margin_shells = args.margin_shells
 
 print("[GTF_DEBUG] inargs_postprocess  : %s" % inargs_postprocess)
 print("[GTF_DEBUG] outargs_rpath       : %s" % outargs_rpath)
 print("[GTF_DEBUG] enable_plot         : %s" % enable_plot)
 print("[GTF_DEBUG] debug_mode          : %s" % debug_mode)
+print("[GTF_DEBUG] reference_fsc       : %s" % reference_fsc)
+print("[GTF_DEBUG] reference_threshold : %s" % reference_threshold)
+print("[GTF_DEBUG] margin_shells       : %s" % margin_shells)
 
 """<<< VARIABLES"""
 
@@ -138,11 +151,16 @@ def create_summary_star_file(results, output_dir):
         f.write("_rlnMaskEvaluationUnmaskedRes05 #6\n")
         f.write("_rlnMaskEvaluationCorrectedRes0143 #7\n")
         f.write("_rlnMaskEvaluationValid #8\n")
+        f.write("_rlnMaskEvaluationReferenceFsc #9\n")
+        f.write("_rlnMaskEvaluationReferenceThreshold #10\n")
+        f.write("_rlnMaskEvaluationMarginShells #11\n")
         f.write(
             f"{int(results['prfsc_pass'])} {results['masked_res_0_143']:.6f} "
             f"{results['phase_rand_zero_res']:.6f} {results['masked_zero_res']:.6f} "
             f"{int(results['legacy_criterion_met'])} {results['unmasked_res_0_5']:.6f} "
-            f"{results['corrected_res_0_143']:.6f} {int(results['valid'])}\n"
+            f"{results['corrected_res_0_143']:.6f} {int(results['valid'])} "
+            f"{results['reference_fsc']} {results['reference_threshold']} "
+            f"{results['margin_shells']}\n"
         )
         f.write("\n")
 
@@ -164,7 +182,12 @@ except Exception as e:
     sys.exit(1)
 
 # Evaluate mask
-results = evaluate_mask3d(data)
+results = evaluate_mask3d(
+    data,
+    reference_fsc=reference_fsc,
+    reference_threshold=reference_threshold,
+    margin_shells=margin_shells,
+)
 
 # Save results as CSV
 result_df = pd.DataFrame([results])

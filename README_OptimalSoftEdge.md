@@ -41,6 +41,11 @@ python optimal_soft_edge_relion.py \
 | `--relion_bin` | Directory with the RELION binaries, default: found on PATH |
 | `--angpix` | Pixel size for `relion_postprocess`, default: read from the half map header |
 | `-j`, `--n_threads` | Threads for `relion_mask_create` (engine `relion`) |
+| `--reference_fsc` | `masked` (default) or `unmasked`: the FSC on which the reference crossing of clause 1 is read |
+| `--reference_threshold` | `0.143` (default) or `0.5`: the threshold of the reference crossing |
+| `--margin_shells` | Whole shells, default 0: the phase randomized zero must lie at least this many shells coarser than the reference crossing |
+
+The last three options set clause 1 of the PRFSC criterion; their meaning is in `README_MaskEvaluation.md`. **The defaults (masked FSC, 0.143, 0 shells) are the paper's criteria.** The search returns the narrowest width that passes under the chosen criterion, so a stricter setting can move the optimal width or leave no passing width. A `cell.json` written under a different criterion is not reused when a search is resumed.
 
 The RELION External job `gtf_relion4_run_optimal_soft_edge.py` takes the same options (`-i` is the mask, `-o` the job directory).
 
@@ -57,4 +62,4 @@ In the output folder:
 
 The RELION job also writes `optimal_mask.mrc` (a copy of the chosen soft mask) and `optimal_soft_edge_summary.star`.
 
-The summary has `optimal_soft_edge_width`, `prfsc_pass`, `no_passing_width`, `stop_reason` (`pass`, `box_edge` or `box_size`), `optimal_extend_inimask`, `engine`, the masked 0.143, phase randomized zero, masked zero and corrected 0.143 resolutions at the chosen width, and `widths_tried`, which lists every width with its verdict, `touches_box` and resolutions. The command-line report prints the same table.
+The summary has `optimal_soft_edge_width`, `prfsc_pass`, `no_passing_width`, `stop_reason` (`pass`, `box_edge` or `box_size`), `optimal_extend_inimask`, `engine`, the criterion options (`reference_fsc`, `reference_threshold`, `margin_shells`), the reference crossing at the chosen width (`optimal_reference_res`), the masked 0.143, phase randomized zero, masked zero and corrected 0.143 resolutions at the chosen width, and `widths_tried`, which lists every width with its verdict, `touches_box` and resolutions. The command-line report prints the same table.

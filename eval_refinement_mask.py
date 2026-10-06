@@ -1,3 +1,4 @@
+import argparse
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -65,7 +66,35 @@ def _find_masked_zero_resolution(masked_fsc, resolution):
     return resolution[below[0] + at_zero[0]], True
 
 
-def evaluate_mask3d(data):
+def _shell_index(resolution, value):
+    """Index of the shell with this resolution value."""
+    return int(np.flatnonzero(resolution == value)[0])
+
+
+def evaluate_mask3d(
+    data, reference_fsc="masked", reference_threshold=0.143, margin_shells=0
+):
+    """Evaluate a mask from the FSC curves of a postprocess run.
+
+    Clause 1 of the PRFSC criterion compares the phase randomized zero (first shell at or below 0)
+    with a reference crossing; the options choose the reference. The defaults are the paper's
+    criteria: masked FSC, 0.143, no margin.
+
+    Args:
+        data: array with columns resolution, unmasked, masked, phase randomized, corrected FSC
+        reference_fsc: "masked" or "unmasked": the FSC on which the reference crossing is read
+        reference_threshold: 0.143 or 0.5: the threshold of the reference crossing
+        margin_shells: whole shells (default 0) by which the phase randomized zero must lie
+            coarser than the reference crossing
+    """
+    if reference_fsc not in ("masked", "unmasked"):
+        raise ValueError(f"reference_fsc must be 'masked' or 'unmasked', not {reference_fsc!r}")
+    if reference_threshold not in (0.143, 0.5):
+        raise ValueError(f"reference_threshold must be 0.143 or 0.5, not {reference_threshold!r}")
+    if isinstance(margin_shells, bool) or int(margin_shells) != margin_shells or margin_shells < 0:
+        raise ValueError(f"margin_shells must be a whole number >= 0, not {margin_shells!r}")
+    margin_shells = int(margin_shells)
+
     resolution = data[:, 0]
     unmasked_fsc = data[:, 1]
     masked_fsc = data[:, 2]
@@ -121,14 +150,26 @@ def evaluate_mask3d(data):
 
     valid = valid_fsc_0_5 and valid_phase_rand_zero and valid_corrected_0_143
 
-    # Our PRFSC criteria: the phase randomized FSC reaches 0 at or before the shell of the
-    # masked 0.143 resolution (no margin), and the masked FSC itself reaches 0 beyond its
-    # 0.143 crossing, at or before Nyquist. A missing crossing fails.
+    # Reference crossing of clause 1 (default: the masked 0.143 resolution)
+    reference_curve = masked_fsc if reference_fsc == "masked" else unmasked_fsc
+    reference_res, valid_reference = _find_resolution_at_threshold(
+        reference_curve, resolution, reference_threshold
+    )
+    if not valid_reference:
+        print(
+            f"Warning: {reference_fsc.capitalize()} FSC never drops below {reference_threshold}"
+        )
+
+    # Our PRFSC criteria (defaults): the phase randomized FSC reaches 0 at or before the shell of
+    # the masked 0.143 resolution (no margin), and the masked FSC itself reaches 0 beyond its
+    # 0.143 crossing, at or before Nyquist. A missing crossing fails. With a margin of x shells
+    # the phase randomized zero must lie at least x shells coarser than the reference crossing.
     prfsc_pass = bool(
-        valid_masked_0_143
+        valid_reference
         and valid_phase_rand_zero
         and valid_masked_zero
-        and phase_rand_zero_res >= masked_res_0_143
+        and _shell_index(resolution, phase_rand_zero_res) + margin_shells
+        <= _shell_index(resolution, reference_res)
     )
 
     # Old rule (Chen et al. 2013 heuristic), reported only; not part of the pass verdict
@@ -143,6 +184,11 @@ def evaluate_mask3d(data):
         "correction_magnitude": correction_magnitude,
         "phase_rand_noise_floor": phase_rand_noise_floor,
         "masked_zero_res": masked_zero_res,
+        "reference_fsc": reference_fsc,
+        "reference_threshold": reference_threshold,
+        "margin_shells": margin_shells,
+        "reference_res": reference_res,
+        "valid_reference": valid_reference,
         "prfsc_pass": prfsc_pass,
         "legacy_criterion_met": legacy_criterion_met,
         "valid": valid,
@@ -246,13 +292,22 @@ def plot_fsc_curves(data, results, filename, save_dir):
     return fig_save_name
 
 
-def evaluate_refinement_mask(star_file, save_dir):
+def evaluate_refinement_mask(
+    star_file,
+    save_dir,
+    reference_fsc="masked",
+    reference_threshold=0.143,
+    margin_shells=0,
+):
     """
     Evaluate refinement mask from a star file.
 
     Args:
         star_file (str): Path to the star file containing FSC data
         save_dir (str): Directory to save evaluation results and plots
+        reference_fsc (str): "masked" (default) or "unmasked": FSC of the reference crossing
+        reference_threshold (float): 0.143 (default) or 0.5: threshold of the reference crossing
+        margin_shells (int): shells by which the phase randomized zero must precede the reference
 
     Returns:
         dict: Evaluation results containing resolutions and pass/fail status
@@ -271,7 +326,12 @@ def evaluate_refinement_mask(star_file, save_dir):
         return None
 
     # Evaluate mask
-    results = evaluate_mask3d(data)
+    results = evaluate_mask3d(
+        data,
+        reference_fsc=reference_fsc,
+        reference_threshold=reference_threshold,
+        margin_shells=margin_shells,
+    )
 
     # Save result dict as csv
     result_df = pd.DataFrame([results])  # Wrap in list to create single row DataFrame
@@ -285,16 +345,46 @@ def evaluate_refinement_mask(star_file, save_dir):
     return results
 
 
+def add_criterion_arguments(parser):
+    """Command-line options for clause 1 of the PRFSC criterion (defaults: our criteria)."""
+    parser.add_argument(
+        "--reference_fsc",
+        choices=["masked", "unmasked"],
+        default="masked",
+        help="FSC on which the reference crossing is read (default masked)",
+    )
+    parser.add_argument(
+        "--reference_threshold",
+        type=float,
+        choices=[0.143, 0.5],
+        default=0.143,
+        help="Threshold of the reference crossing (default 0.143)",
+    )
+    parser.add_argument(
+        "--margin_shells",
+        type=int,
+        default=0,
+        help="Shells by which the phase randomized zero must lie coarser than the reference "
+        "crossing (default 0)",
+    )
+
+
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python evaluate_mask3d.py <star_file> <save_dir>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Evaluate a refinement mask from a RELION postprocess star file."
+    )
+    parser.add_argument("star_file")
+    parser.add_argument("save_dir")
+    add_criterion_arguments(parser)
+    args = parser.parse_args()
 
-    star_file = sys.argv[1]
-    save_dir = sys.argv[2]
-
-    # Use the new function
-    results = evaluate_refinement_mask(star_file, save_dir)
+    results = evaluate_refinement_mask(
+        args.star_file,
+        args.save_dir,
+        reference_fsc=args.reference_fsc,
+        reference_threshold=args.reference_threshold,
+        margin_shells=args.margin_shells,
+    )
 
     if results is None:
         sys.exit(1)

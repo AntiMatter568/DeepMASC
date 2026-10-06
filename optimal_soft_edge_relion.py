@@ -8,7 +8,7 @@ import mrcfile
 import numpy as np
 import pandas as pd
 
-from eval_refinement_mask import evaluate_refinement_mask
+from eval_refinement_mask import add_criterion_arguments, evaluate_refinement_mask
 from soft_edge_mask import INI_THRESHOLD, touches_box, write_soft_mask
 
 START_WIDTH = 5
@@ -20,7 +20,14 @@ RESULT_COLUMNS = [
     "phase_rand_zero_res",
     "masked_zero_res",
     "corrected_res_0_143",
+    "reference_res",
 ]
+
+CRITERION_DEFAULTS = {
+    "reference_fsc": "masked",
+    "reference_threshold": 0.143,
+    "margin_shells": 0,
+}
 
 
 def _tool(name, relion_bin):
@@ -78,15 +85,21 @@ def _box_size(path):
 
 def _evaluate_width(
     width, input_map_path, half1, emdid, output_folder, extend_inimask, engine,
-    n_threads, relion_bin, angpix,
+    n_threads, relion_bin, angpix, criterion,
 ):  # fmt: skip
-    """Soft mask, postprocess and evaluation for one width; the result is kept in cell.json."""
+    """Soft mask, postprocess and evaluation for one width; the result is kept in cell.json.
+
+    A cell.json written under another criterion is not reused.
+    """
     width_dir = os.path.join(output_folder, f"soft_edge_{width}")
     cell_json = os.path.join(width_dir, "cell.json")
     if os.path.exists(cell_json):
-        print(f"Skipping soft edge width {width}: already evaluated")
         with open(cell_json) as f:
-            return json.load(f)
+            cell = json.load(f)
+        if all(cell.get(k, CRITERION_DEFAULTS[k]) == v for k, v in criterion.items()):
+            print(f"Skipping soft edge width {width}: already evaluated")
+            return cell
+        print(f"Width {width} was evaluated under another criterion: evaluating again")
     os.makedirs(width_dir, exist_ok=True)
 
     mask_mrc = os.path.join(width_dir, f"{emdid}_soft_edge_{width}.mrc")
@@ -101,11 +114,11 @@ def _evaluate_width(
     if not run_postprocess(mask_mrc, half1, out_root, angpix, relion_bin):
         raise RuntimeError(f"relion_postprocess wrote no star file for width {width}")
     eval_output_dir = os.path.join(width_dir, "eval_output")
-    results = evaluate_refinement_mask(star_file, eval_output_dir)
+    results = evaluate_refinement_mask(star_file, eval_output_dir, **criterion)
     if results is None:
         raise RuntimeError(f"Could not evaluate {star_file}")
 
-    cell = {"width": width, "touches_box": touched}
+    cell = {"width": width, "touches_box": touched, **criterion}
     cell.update({k: results[k] for k in RESULT_COLUMNS})
     cell.update({"prfsc_pass": bool(results["prfsc_pass"]), "valid": bool(results["valid"])})
     with open(cell_json, "w") as f:
@@ -123,6 +136,9 @@ def run_soft_edge_search(
     relion_bin: str | None = None,
     half_map_2: str | None = None,
     angpix: float | None = None,
+    reference_fsc: str = "masked",
+    reference_threshold: float = 0.143,
+    margin_shells: int = 0,
 ) -> dict:
     """
     Search for the optimal soft edge: the narrowest width (px) at which the mask passes the PRFSC
@@ -133,7 +149,10 @@ def run_soft_edge_search(
     A mask that never passes stops at the first width whose soft mask is non-zero on a box face
     (that width is evaluated, kept and flagged "no passing width", stop reason "box_edge"). A width
     larger than the box is not tried (stop reason "box_size"). Widths with a cell.json from an
-    earlier run are not recomputed.
+    earlier run under the same criterion are not recomputed.
+
+    The pass verdict is the PRFSC criterion of eval_refinement_mask.evaluate_mask3d; its three
+    options (reference_fsc, reference_threshold, margin_shells) default to our criteria.
 
     Args:
         input_map_path: Path to the input binary mask MRC file
@@ -145,12 +164,26 @@ def run_soft_edge_search(
         relion_bin: Directory holding the RELION binaries (default: found on PATH)
         half_map_2: Path to half map 2 (default: half 1 name with _half1 -> _half2 / _halfA -> _halfB)
         angpix: Pixel size for relion_postprocess (default: read from the half map header)
+        reference_fsc: "masked" (default) or "unmasked": FSC of the clause 1 reference crossing
+        reference_threshold: 0.143 (default) or 0.5: threshold of the reference crossing
+        margin_shells: shells (default 0) by which the phase randomized zero must precede it
 
     Returns:
         dict with the chosen width, the verdict, the stop reason and every width tried
     """
     if engine not in ("distance", "relion"):
         raise ValueError(f"engine must be 'distance' or 'relion', not {engine!r}")
+    if reference_fsc not in ("masked", "unmasked"):
+        raise ValueError(f"reference_fsc must be 'masked' or 'unmasked', not {reference_fsc!r}")
+    if reference_threshold not in (0.143, 0.5):
+        raise ValueError(f"reference_threshold must be 0.143 or 0.5, not {reference_threshold!r}")
+    if int(margin_shells) != margin_shells or margin_shells < 0:
+        raise ValueError(f"margin_shells must be a whole number >= 0, not {margin_shells!r}")
+    criterion = {
+        "reference_fsc": reference_fsc,
+        "reference_threshold": reference_threshold,
+        "margin_shells": int(margin_shells),
+    }
     if n_threads is None:
         n_threads = os.cpu_count() or 1
     if not os.path.isfile(input_map_path):
@@ -175,6 +208,10 @@ def run_soft_edge_search(
     box = _box_size(input_map_path)
     print(f"Soft edge search: widths {START_WIDTH}, {START_WIDTH + STEP_WIDTH} ... px")
     print(f"  Extend inimask: {extend_inimask} px, engine: {engine}, box: {box} px")
+    print(
+        f"  PRFSC reference: {reference_fsc} FSC at {reference_threshold}, "
+        f"margin {criterion['margin_shells']} shells"
+    )
 
     cells = []
     width = START_WIDTH
@@ -182,7 +219,7 @@ def run_soft_edge_search(
         print(f"\nProcessing soft edge width: {width}")
         cell = _evaluate_width(
             width, input_map_path, half1, emdid, output_folder, extend_inimask, engine,
-            n_threads, relion_bin, angpix,
+            n_threads, relion_bin, angpix, criterion,
         )  # fmt: skip
         cells.append(cell)
         print(f"  {'PASS' if cell['prfsc_pass'] else 'FAIL'}")
@@ -198,11 +235,13 @@ def run_soft_edge_search(
         width += STEP_WIDTH
 
     return _summarize(
-        cells, stop_reason, emdid, output_folder, extend_inimask, engine
+        cells, stop_reason, emdid, output_folder, extend_inimask, engine, criterion
     )
 
 
-def _summarize(cells, stop_reason, emdid, output_folder, extend_inimask, engine):
+def _summarize(
+    cells, stop_reason, emdid, output_folder, extend_inimask, engine, criterion
+):
     """Keep the chosen soft mask only, write the per-width table and the summary."""
     chosen = cells[-1]
     chosen_width = chosen["width"]
@@ -229,6 +268,8 @@ def _summarize(cells, stop_reason, emdid, output_folder, extend_inimask, engine)
         "optimal_extend_inimask": extend_inimask,
         "extend_inimask": extend_inimask,
         "engine": engine,
+        **criterion,
+        "optimal_reference_res": float(chosen.get("reference_res", nan)),
         "optimal_masked_res_0_143": float(chosen.get("masked_res_0_143", nan)),
         "optimal_phase_rand_zero_res": float(chosen.get("phase_rand_zero_res", nan)),
         "optimal_masked_zero_res": float(chosen.get("masked_zero_res", nan)),
@@ -252,6 +293,10 @@ def print_report(summary):
     print(f"   PRFSC criteria: {verdict}")
     print(f"   Stop reason: {summary['stop_reason']}")
     print(f"   Extend inimask: {summary['extend_inimask']} px, engine: {summary['engine']}")
+    print(
+        f"   PRFSC reference: {summary['reference_fsc']} FSC at "
+        f"{summary['reference_threshold']}, margin {summary['margin_shells']} shells"
+    )
     print("\nWIDTHS TRIED:")
     table = pd.DataFrame(summary["widths_tried"])
     table = table[["width", "prfsc_pass", "touches_box", *RESULT_COLUMNS[1:]]]
@@ -281,6 +326,7 @@ if __name__ == "__main__":
                         help="Pixel size for relion_postprocess (default: half map header)")  # fmt: skip
     parser.add_argument("-j", "--n_threads", type=int, default=os.cpu_count(),
                         help="The number of threads for relion_mask_create, default is all CPU cores")  # fmt: skip
+    add_criterion_arguments(parser)
     args = parser.parse_args()
 
     try:
@@ -294,6 +340,9 @@ if __name__ == "__main__":
             relion_bin=args.relion_bin,
             half_map_2=args.half_map_2,
             angpix=args.angpix,
+            reference_fsc=args.reference_fsc,
+            reference_threshold=args.reference_threshold,
+            margin_shells=args.margin_shells,
         )
         print(
             f"\nFINAL RESULT: soft edge width {summary['optimal_soft_edge_width']} px, "
