@@ -4,7 +4,12 @@ This script evaluates the quality of 3D masks used in RELION refinement based on
 
 ## Overview
 
-The script analyzes FSC curves from RELION PostProcess jobs to determine if a mask meets the quality criteria defined in Method C of mask evaluation. It checks whether the first zero crossing of the phase randomized FSC curve occurs at lower resolution than the FSC=0.5 criterion without any mask.
+The script analyzes FSC curves from RELION PostProcess jobs and reports whether the mask passes the PRFSC criteria. A mask passes when both of the following hold:
+
+1. The phase randomized masked FSC reaches 0 at or before the shell of the masked 0.143 resolution. The shells are compared directly with no margin, so a zero at the same shell as the masked 0.143 resolution passes and a zero at a finer shell fails.
+2. The masked FSC itself reaches 0 or below at some shell beyond its 0.143 crossing, at or before Nyquist. There is no exception for maps whose 0.143 crossing lies near Nyquist.
+
+Crossings are shell values and are not interpolated. The 0.143 resolution is the resolution of the last shell at or above 0.143 before the first shell below it. The phase randomized zero is the resolution of the first shell with a value at or below 0. If the masked FSC never drops below 0.143, the phase randomized FSC never reaches 0, or the masked FSC never reaches 0 after its 0.143 drop, the mask fails.
 
 ## Usage with RELION GUI
 
@@ -64,24 +69,31 @@ The script generates the following output files in the RELION job directory:
 
 ## Evaluation Criteria
 
-The script evaluates masks based on the following criteria:
+The pass verdict (`prfsc_pass`) is built from three quantities:
 
-1. **Resolution at FSC=0.5 (unmasked)**: The resolution where the unmasked FSC drops below 0.5
-2. **Phase randomized FSC zero crossing**: The first resolution where phase randomized FSC crosses zero
-3. **Resolution at FSC=0.143 (corrected)**: The resolution where corrected FSC drops below 0.143
+1. **Masked FSC at 0.143**: the resolution of the last shell at or above 0.143 before the first shell below it (`masked_res_0_143`).
+2. **Phase randomized FSC zero**: the resolution of the first shell with phase randomized FSC at or below 0 (`phase_rand_zero_res`).
+3. **Masked FSC zero**: the resolution of the first shell, at or after the first shell below 0.143, where the masked FSC is at or below 0 (`masked_zero_res`, NaN if there is none).
 
-**PASS Criterion**: The phase randomized FSC zero crossing occurs at lower resolution (higher Å value) than the FSC=0.5 criterion without mask.
+`prfsc_pass` is true when `phase_rand_zero_res` is at or coarser than `masked_res_0_143` (larger or equal in Å) and `masked_zero_res` exists.
+
+The unmasked 0.5 resolution, the corrected 0.143 resolution, the noise floor and the correction magnitude are still reported. They are not part of the verdict. The older rule (phase randomized zero at or coarser than the unmasked 0.5 resolution) is reported as `legacy_criterion_met` and does not decide pass.
 
 ## Interpretation of Results
 
 ### CSV Output
 
 The `mask3d_evaluation.csv` file contains:
-- `unmasked_res_0_5`: Resolution at FSC=0.5 without mask (Å)
+- `prfsc_pass`: Boolean indicating if the mask passes the PRFSC criteria
+- `masked_res_0_143`: Resolution at FSC=0.143 of the masked FSC (Å)
 - `phase_rand_zero_res`: Resolution at phase randomized FSC zero crossing (Å)
-- `corrected_res_0_143`: Resolution at FSC=0.143 with corrected FSC (Å)
-- `criterion_met`: Boolean indicating if the mask passes the evaluation
-- `valid`: Boolean indicating if all measurements were valid
+- `masked_zero_res`: Resolution where the masked FSC reaches 0 beyond its 0.143 crossing (Å, NaN if it does not)
+- `legacy_criterion_met`: Reported only. Boolean for the older rule (phase randomized zero at or coarser than the unmasked 0.5 resolution)
+- `unmasked_res_0_5`: Resolution at FSC=0.5 without mask (Å), reported only
+- `corrected_res_0_143`: Resolution at FSC=0.143 with corrected FSC (Å), reported only
+- `correction_magnitude` and `phase_rand_noise_floor`: reported only
+- `valid`: Boolean indicating if the unmasked 0.5, phase randomized zero and corrected 0.143 crossings were found
+- `valid_masked_0_143`, `valid_phase_rand_zero` and `valid_masked_zero`: whether each crossing used by `prfsc_pass` was found
 
 ### Plot Output
 
@@ -95,4 +107,4 @@ The FSC curves plot shows:
 
 ### Summary Star File
 
-The `mask_evaluation_summary.star` file contains RELION-compatible results that can be used in downstream processing or analysis.
+The `mask_evaluation_summary.star` file contains the pass verdict, the three resolutions behind it and the reported-only quantities that can be used in downstream processing or analysis.

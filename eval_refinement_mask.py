@@ -49,6 +49,22 @@ def _find_resolution_at_threshold(fsc_values, resolution, threshold, direction="
     return resolution[idx], True
 
 
+def _find_masked_zero_resolution(masked_fsc, resolution):
+    """Find the first shell with masked FSC <= 0 at or after the first shell below 0.143.
+
+    Returns:
+        (resolution_value, valid) tuple. If the masked FSC never drops below 0.143, or never
+        reaches 0 after that up to Nyquist, returns (nan, False).
+    """
+    below = np.where(masked_fsc < 0.143)[0]
+    if len(below) == 0:
+        return np.nan, False
+    at_zero = np.where(masked_fsc[below[0] :] <= 0)[0]
+    if len(at_zero) == 0:
+        return np.nan, False
+    return resolution[below[0] + at_zero[0]], True
+
+
 def evaluate_mask3d(data):
     resolution = data[:, 0]
     unmasked_fsc = data[:, 1]
@@ -86,6 +102,12 @@ def evaluate_mask3d(data):
     if not valid_masked_0_143:
         print("Warning: Masked FSC never drops below 0.143")
 
+    masked_zero_res, valid_masked_zero = _find_masked_zero_resolution(
+        masked_fsc, resolution
+    )
+    if valid_masked_0_143 and not valid_masked_zero:
+        print("Warning: Masked FSC never reaches zero after its 0.143 crossing")
+
     # |masked_0.143 - corrected_0.143|: smaller = less correction needed = more reliable mask
     correction_magnitude = abs(masked_res_0_143 - corrected_res_0_143)
 
@@ -99,8 +121,18 @@ def evaluate_mask3d(data):
 
     valid = valid_fsc_0_5 and valid_phase_rand_zero and valid_corrected_0_143
 
-    # Chen et al. 2013 heuristic
-    criterion_met = phase_rand_zero_res >= unmasked_res_0_5
+    # Our PRFSC criteria: the phase randomized FSC reaches 0 at or before the shell of the
+    # masked 0.143 resolution (no margin), and the masked FSC itself reaches 0 beyond its
+    # 0.143 crossing, at or before Nyquist. A missing crossing fails.
+    prfsc_pass = bool(
+        valid_masked_0_143
+        and valid_phase_rand_zero
+        and valid_masked_zero
+        and phase_rand_zero_res >= masked_res_0_143
+    )
+
+    # Old rule (Chen et al. 2013 heuristic), reported only; not part of the pass verdict
+    legacy_criterion_met = bool(phase_rand_zero_res >= unmasked_res_0_5)
 
     return {
         "unmasked_res_0_5": unmasked_res_0_5,
@@ -110,12 +142,15 @@ def evaluate_mask3d(data):
         "masked_res_0_143": masked_res_0_143,
         "correction_magnitude": correction_magnitude,
         "phase_rand_noise_floor": phase_rand_noise_floor,
-        "criterion_met": criterion_met,
+        "masked_zero_res": masked_zero_res,
+        "prfsc_pass": prfsc_pass,
+        "legacy_criterion_met": legacy_criterion_met,
         "valid": valid,
         "valid_fsc_0_5": valid_fsc_0_5,
         "valid_fsc_0_143": valid_corrected_0_143,
         "valid_unmasked_0_143": valid_unmasked_0_143,
         "valid_masked_0_143": valid_masked_0_143,
+        "valid_masked_zero": valid_masked_zero,
         "valid_phase_rand_zero": valid_phase_rand_zero,
     }
 
@@ -197,7 +232,7 @@ def plot_fsc_curves(data, results, filename, save_dir):
     ax2.set_xticklabels([f"{r:g}" for r in resolution_ticks_angstrom])
     ax2.set_xlabel("Resolution (Å)", fontsize=12)
 
-    status = "PASS" if results["criterion_met"] else "FAIL"
+    status = "PASS" if results["prfsc_pass"] else "FAIL"
     ax1.set_title(f"FSC Curves Evaluation - {status} - {filename}", fontsize=14, pad=30)
 
     sns.despine(left=False, bottom=False)
@@ -207,6 +242,8 @@ def plot_fsc_curves(data, results, filename, save_dir):
     fig.savefig(os.path.join(save_dir, fig_save_name), dpi=300, bbox_inches="tight")
     print(f"\nFSC curves plot saved as {os.path.join(save_dir, fig_save_name)}")
     plt.close(fig)
+
+    return fig_save_name
 
 
 def evaluate_refinement_mask(star_file, save_dir):

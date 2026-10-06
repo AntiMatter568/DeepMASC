@@ -97,9 +97,10 @@ def combine_and_select_optimal_mask(output_folder, emdid):
     combined_df.to_csv(combined_csv_path, index=False)
     print(f"Combined results saved to: {combined_csv_path}")
 
+    # Selects on the old rule; ticket 27 switches this to the prfsc_pass verdict
     valid_results = pd.DataFrame(
         combined_df[
-            (combined_df["valid"] == True) & (combined_df["criterion_met"] == True)
+            (combined_df["valid"] == True) & (combined_df["legacy_criterion_met"] == True)
         ]
     )
 
@@ -116,7 +117,7 @@ def combine_and_select_optimal_mask(output_folder, emdid):
         print("\nFalling back to valid + criterion_met only:")
         fallback_results = pd.DataFrame(
             combined_df[
-                (combined_df["valid"] == True) & (combined_df["criterion_met"] == True)
+                (combined_df["valid"] == True) & (combined_df["legacy_criterion_met"] == True)
             ]
         )
         if len(fallback_results) == 0:
@@ -174,7 +175,7 @@ def combine_and_select_optimal_mask(output_folder, emdid):
         f"   Phase rand noise floor: {optimal_result.get('phase_rand_noise_floor', float('nan')):.4f}"
     )
     print(f"   Phase rand zero crossing: {optimal_result['phase_rand_zero_res']:.3f} Å")
-    print(f"   Criterion met: {'YES' if optimal_result['criterion_met'] else 'NO'}")
+    print(f"   Criterion met: {'YES' if optimal_result['legacy_criterion_met'] else 'NO'}")
     print(f"   Valid: {'YES' if optimal_result['valid'] else 'NO'}")
 
     print(f"\nCOMPARISON TABLE:")
@@ -192,7 +193,7 @@ def combine_and_select_optimal_mask(output_folder, emdid):
     for col in optional_cols:
         if col in combined_df.columns:
             comparison_cols.append(col)
-    comparison_cols.extend(["criterion_met", "valid"])
+    comparison_cols.extend(["legacy_criterion_met", "valid"])
 
     comparison_df = combined_df[comparison_cols].sort_values(  # type: ignore[call-overload]
         ["extend_inimask", "soft_edge_width"]
@@ -229,7 +230,7 @@ def combine_and_select_optimal_mask(output_folder, emdid):
         ),
         "total_results": len(combined_df),
         "valid_results": len(valid_results),
-        "criterion_met": bool(optimal_result["criterion_met"]),
+        "criterion_met": bool(optimal_result["legacy_criterion_met"]),
         "emdid": emdid,
     }
 
@@ -355,7 +356,7 @@ def run_soft_edge_grid_search(
                 try:
                     results = evaluate_refinement_mask(star_file, eval_output_dir)
                     if results:
-                        status = "PASS" if results["criterion_met"] else "FAIL"
+                        status = "PASS" if results["legacy_criterion_met"] else "FAIL"
                         print(f"Mask evaluation result: {status}")
                         print(
                             f"  - Unmasked res (FSC=0.5): {results['unmasked_res_0_5']:.3f} Å"
