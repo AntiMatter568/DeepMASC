@@ -18,7 +18,7 @@ Widths that already have a `cell.json` in the output folder are not recomputed, 
 
 ## Soft mask
 
-Voxels at or above 0.01 are set to 1. A voxel outside the mask takes the value 0.5 + 0.5 cos(pi d / w) when its distance d to the mask is below the width w, and 0 otherwise. This is the mask that `relion_mask_create --ini_threshold 0.01 --extend_inimask e --width_soft_edge w` writes, including RELION's placeholder distance of sqrt(9999) px, which changes the result for widths of 100 px and more. The default engine computes it with a distance transform, so the cost does not depend on the width. The `relion` engine runs `relion_mask_create` instead. The soft mask keeps the voxel size, origin, start indices and axis order of the input mask.
+Voxels at or above 0.01 are set to 1. A voxel outside the mask takes the value 0.5 + 0.5 cos(pi d / w) when its distance d to the mask is below the width w, and 0 otherwise. This is the mask that `relion_mask_create --ini_threshold 0.01 --extend_inimask e --width_soft_edge w` writes, including RELION's placeholder distance of sqrt(9999) px, which changes the result for widths of 100 px and more. The default engine computes it with a distance transform, so the cost does not depend on the width. The `relion` engine runs `relion_mask_create` instead. The soft mask keeps the voxel size, origin, start indices and axis order of the input mask. The same code is available as a standalone command, see `README_SoftEdgeMask.md`.
 
 The mask extension is a single option, default 0 px. A positive value sets to 1 every voxel strictly closer than that many pixels to the mask before the soft edge is measured.
 
