@@ -10,12 +10,12 @@ import shutil
 import sys
 from pathlib import Path
 
-from optimal_soft_edge_relion import run_soft_edge_grid_search
+from optimal_soft_edge_relion import run_soft_edge_search
 
 if __name__ == "__main__":
     print("[GTF_DEBUG] Full command:", " ".join(sys.argv))
 
-    print("This script runs optimal soft edge parameter search for 3D masks")
+    print("This script searches the narrowest soft edge width at which a 3D mask passes the PRFSC criteria")
 
     print("running ...")
     parser = argparse.ArgumentParser()
@@ -41,23 +41,29 @@ if __name__ == "__main__":
     parser.add_argument(
         "-e",
         "--extend_inimask",
-        type=str,
-        default="0,2,3,4",
-        help="Extend initial mask values (comma-separated, e.g., '0,2,3,4')",
+        type=float,
+        default=0,
+        help="Mask extension in pixels before the soft edge (default 0)",
     )
     parser.add_argument(
-        "-s",
-        "--soft_edge_widths",
+        "--engine",
         type=str,
-        default="5,10,15,20,25",
-        help="Soft edge width values (comma-separated, e.g., '5,10,15,20,25')",
+        choices=["distance", "relion"],
+        default="distance",
+        help="Soft mask engine: distance transform (default, same values as relion_mask_create) or relion_mask_create",
+    )
+    parser.add_argument(
+        "--relion_bin",
+        type=str,
+        default=None,
+        help="Directory with the RELION binaries (default: found on PATH)",
     )
     parser.add_argument(
         "-j",
         "--n_threads",
         type=int,
         default=os.cpu_count() or 1,
-        help="Number of threads for relion_mask_create",
+        help="Number of threads for relion_mask_create (engine relion)",
     )
 
     args, unknown = parser.parse_known_args()
@@ -72,7 +78,8 @@ if __name__ == "__main__":
     print("[GTF_DEBUG] outargs_rpath       : %s" % outargs_rpath)
     print("[GTF_DEBUG] half_map            : %s" % half_map)
     print("[GTF_DEBUG] extend_inimask      : %s" % args.extend_inimask)
-    print("[GTF_DEBUG] soft_edge_widths    : %s" % args.soft_edge_widths)
+    print("[GTF_DEBUG] engine              : %s" % args.engine)
+    print("[GTF_DEBUG] relion_bin          : %s" % args.relion_bin)
     print("[GTF_DEBUG] n_threads           : %s" % args.n_threads)
 
     assert os.path.exists(inargs_mask), (
@@ -89,66 +96,29 @@ if __name__ == "__main__":
 
     os.makedirs(outargs_rpath, exist_ok=True)
 
-    try:
-        extend_inimask_values = [int(x.strip()) for x in args.extend_inimask.split(",")]
-    except ValueError:
-        raise ValueError(
-            f"# Logical Error: Invalid extend_inimask values: {args.extend_inimask}"
-        )
-
-    try:
-        soft_edge_widths = [int(x.strip()) for x in args.soft_edge_widths.split(",")]
-    except ValueError:
-        raise ValueError(
-            f"# Logical Error: Invalid soft_edge_widths values: {args.soft_edge_widths}"
-        )
-
     print("[GTF_DEBUG] Starting optimal soft edge parameter search...")
 
-    optimal_summary = run_soft_edge_grid_search(
+    optimal_summary = run_soft_edge_search(
         input_map_path=inargs_mask,
         output_folder=outargs_rpath,
         half_map=half_map,
-        extend_inimask_values=extend_inimask_values,
-        soft_edge_widths=soft_edge_widths,
+        extend_inimask=args.extend_inimask,
+        engine=args.engine,
         n_threads=args.n_threads,
+        relion_bin=args.relion_bin,
     )
 
-    if optimal_summary is None:
-        raise ValueError(
-            "# Logical Error: No valid results found during soft edge parameter search"
-        )
-
-    print("[GTF_DEBUG] Optimal parameters found:")
-    print(
-        "[GTF_DEBUG]   Extend Inimask: %d" % optimal_summary["optimal_extend_inimask"]
-    )
-    print(
-        "[GTF_DEBUG]   Soft Edge Width: %d" % optimal_summary["optimal_soft_edge_width"]
-    )
-    print(
-        "[GTF_DEBUG]   Corrected Resolution: %.3f Å"
-        % optimal_summary["optimal_corrected_resolution"]
-    )
+    print("[GTF_DEBUG] Optimal soft edge found:")
+    print("[GTF_DEBUG]   Soft Edge Width: %d" % optimal_summary["optimal_soft_edge_width"])
+    print("[GTF_DEBUG]   PRFSC pass: %s" % optimal_summary["prfsc_pass"])
+    print("[GTF_DEBUG]   Stop reason: %s" % optimal_summary["stop_reason"])
 
     emdid = Path(inargs_mask).stem
-    opt_extend = optimal_summary["optimal_extend_inimask"]
-    opt_soft_edge = optimal_summary["optimal_soft_edge_width"]
-
-    optimal_mask_mrc = os.path.join(
-        outargs_rpath,
-        f"extend_{opt_extend}_soft_edge_{opt_soft_edge}",
-        f"{emdid}_extend_{opt_extend}_soft_edge_{opt_soft_edge}.mrc",
-    )
+    optimal_mask_mrc = optimal_summary["optimal_mask_path"]
 
     output_optimal_mask = os.path.join(outargs_rpath, "optimal_mask.mrc")
-    if os.path.exists(optimal_mask_mrc):
-        shutil.copy(optimal_mask_mrc, output_optimal_mask)
-        print("[GTF_DEBUG] Optimal mask copied to: %s" % output_optimal_mask)
-    else:
-        print(
-            "[GTF_DEBUG] Warning: Optimal mask file not found at: %s" % optimal_mask_mrc
-        )
+    shutil.copy(optimal_mask_mrc, output_optimal_mask)
+    print("[GTF_DEBUG] Optimal mask copied to: %s" % output_optimal_mask)
 
     import math
 
@@ -166,26 +136,27 @@ if __name__ == "__main__":
         f.write("data_optimal_soft_edge\n")
         f.write("\n")
         f.write("loop_\n")
-        f.write("_rlnOptimalExtendInimask #1\n")
-        f.write("_rlnOptimalSoftEdgeWidth #2\n")
-        f.write("_rlnOptimalCorrectedResolution #3\n")
-        f.write("_rlnOptimalUnmaskedResolution0143 #4\n")
-        f.write("_rlnOptimalMaskedResolution0143 #5\n")
-        f.write("_rlnOptimalCorrectionMagnitude #6\n")
-        f.write("_rlnOptimalPhaseRandNoiseFloor #7\n")
-        f.write("_rlnCriterionMet #8\n")
-        f.write("_rlnTotalCombinationsTested #9\n")
-        f.write("_rlnValidResultsCount #10\n")
+        f.write("_rlnOptimalSoftEdgeWidth #1\n")
+        f.write("_rlnPrfscPass #2\n")
+        f.write("_rlnNoPassingWidth #3\n")
+        f.write("_rlnSoftEdgeStopReason #4\n")
+        f.write("_rlnOptimalExtendInimask #5\n")
+        f.write("_rlnOptimalMaskedResolution0143 #6\n")
+        f.write("_rlnOptimalPhaseRandZeroResolution #7\n")
+        f.write("_rlnOptimalMaskedZeroResolution #8\n")
+        f.write("_rlnOptimalCorrectedResolution #9\n")
+        f.write("_rlnWidthsTried #10\n")
         f.write(
-            f"{opt_extend} {opt_soft_edge} "
+            f"{optimal_summary['optimal_soft_edge_width']} "
+            f"{int(optimal_summary['prfsc_pass'])} "
+            f"{int(optimal_summary['no_passing_width'])} "
+            f"{optimal_summary['stop_reason']} "
+            f"{optimal_summary['optimal_extend_inimask']} "
+            f"{_fmt(optimal_summary['optimal_masked_res_0_143'])} "
+            f"{_fmt(optimal_summary['optimal_phase_rand_zero_res'])} "
+            f"{_fmt(optimal_summary['optimal_masked_zero_res'])} "
             f"{_fmt(optimal_summary['optimal_corrected_resolution'])} "
-            f"{_fmt(optimal_summary.get('optimal_unmasked_res_0_143', float('nan')))} "
-            f"{_fmt(optimal_summary.get('optimal_masked_res_0_143', float('nan')))} "
-            f"{_fmt(optimal_summary.get('optimal_correction_magnitude', float('nan')))} "
-            f"{_fmt(optimal_summary.get('optimal_phase_rand_noise_floor', float('nan')))} "
-            f"{int(optimal_summary['criterion_met'])} "
-            f"{optimal_summary['total_results']} "
-            f"{optimal_summary['valid_results']}\n"
+            f"{len(optimal_summary['widths_tried'])}\n"
         )
         f.write("\n")
     print("[GTF_DEBUG] Summary star file saved: %s" % summary_star_path)

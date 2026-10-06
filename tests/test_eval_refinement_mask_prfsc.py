@@ -3,6 +3,7 @@ import math
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -19,8 +20,8 @@ MASKED = [1.0, 0.9, 0.6, 0.3, 0.1, -0.1, -0.2, -0.2, -0.2, -0.2]
 PHASE_RAND = [0.9, 0.5, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 
-def write_star(tmp_path, masked=MASKED, phase_rand=PHASE_RAND):
-    star = tmp_path / "run_postprocess.star"
+def write_star(tmp_path, masked=MASKED, phase_rand=PHASE_RAND, name="run_postprocess.star"):
+    star = Path(tmp_path) / name
     lines = ["", "# version 30001", "", "data_general", "", "_rlnFinalResolution 5.0", "", "data_fsc", "", "loop_",
              "_rlnSpectralIndex #1", "_rlnResolution #2", "_rlnAngstromResolution #3",
              "_rlnFourierShellCorrelationCorrected #4",
