@@ -101,9 +101,16 @@ def capped_squared_distance(data, ini_threshold=INI_THRESHOLD, extend=0.0, edt_b
 
 def soft_edge_from_distance(binary, r2, width):
     """The soft mask of one width from capped_squared_distance: 1 inside the mask, and
-    0.5 + 0.5 cos(pi sqrt(r2) / width) where r2 < width^2, else 0."""
-    soft = np.where(r2 < width * width, 0.5 + 0.5 * np.cos(np.pi * np.sqrt(r2) / width), 0.0)
-    return np.where(binary, 1.0, soft)
+    0.5 + 0.5 cos(pi sqrt(r2) / width) where r2 < width^2, else 0.
+
+    The cosine is evaluated only on the voxels inside the edge, which are the same values a full-array
+    evaluation gives for them.
+    """
+    soft = np.zeros(r2.shape)
+    edge = r2 < width * width
+    soft[edge] = 0.5 + 0.5 * np.cos(np.pi * np.sqrt(r2[edge]) / width)
+    soft[binary] = 1.0
+    return soft
 
 
 def relion_soft_edge(data, width, ini_threshold=INI_THRESHOLD, extend=0.0, edt_backend=DEFAULT_EDT_BACKEND,
