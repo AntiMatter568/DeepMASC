@@ -44,13 +44,33 @@ On the voxel grid, as `relion_mask_create` does it, the padding is the set of vo
 
 The soft mask is computed with a Euclidean distance transform instead of RELION's cube search, and reproduces RELION 5.0.1 `autoMask`, including its initial squared distance of 9999 (which matters for widths of 100 px and more). Against `relion_mask_create` on four generated low-resolution masks (boxes 100 to 144, 6 cases each: pixel width, Å width, padding in px and in Å, both presets), the largest absolute difference is 6e-8 and no voxel differs by more than 1e-6. The cost of the distance transform does not depend on the width. On a box of 100 the command takes about 1 s at widths of 3, 10 and 30 px; `relion_mask_create` with 8 threads takes 0.13, 1.8 and 34 s.
 
+## Distance transform backend
+
+The soft edge needs the Euclidean distance transform of the mask (twice with padding). The default backend is `scipy.ndimage.distance_transform_edt`. An optional backend written in [Taichi](https://www.taichi-lang.org/) (`soft_edge_taichi.py`) computes the same squared distances on CPU threads or on a CUDA GPU.
+
+| Option | Description |
+|---|---|
+| `--edt_backend` | `scipy` (default), `taichi`, or `auto` |
+| `--taichi_arch` | `cpu`, `cuda`, or `auto` (default: CUDA when a device is usable, else CPU) |
+
+- `taichi` fails with an error message when the `taichi` package is missing, does not start, or (with `--taichi_arch cuda`) finds no CUDA device.
+- `auto` uses Taichi when it starts and otherwise prints a note and uses scipy.
+- The squared distances are the same integers as scipy's on every voxel. The soft mask is the same function of them; on the test shapes the two backends agree exactly, and the tolerance of the tests is 1e-6.
+- The Taichi CPU backend uses all cores of the machine. Set the number of threads in the library with `threads` (the search passes its `--n_threads`).
+
+Taichi is not a dependency of DeepMASC. Install it with `pip install taichi`; version 1.7.x was tested (Python 3.11). Taichi publishes wheels for a limited range of Python versions, so check the wheel list of the release for the Python in use. CUDA needs a driver recent enough for the card.
+
+Taichi gains nothing on one CPU thread and little on small boxes (a few seconds with scipy); it is meant for boxes of 512 voxels and more with several CPU threads or a GPU. Measured times are in `README_OptimalSoftEdge.md`.
+
+In the library, `capped_squared_distance(data, ...)` returns the binary mask and the squared distance capped at 9999 (one transform, two with padding), `soft_edge_from_distance(binary, r2, width)` turns it into the soft mask of one width, and `SoftEdgeDistance(src, ...)` writes the soft masks of several widths from one mask file with one transform. `relion_soft_edge` and `write_soft_mask` take the same backend options.
+
 ## RELION External job
 
 ```
 python /path/to/gtf_relion4_run_soft_edge_mask.py --width_A 12
 ```
 
-Set the input as a mask (`--in_mask`) and give the same width, padding, threshold and preset options as above. The job directory receives:
+Set the input as a mask (`--in_mask`) and give the same width, padding, threshold, preset and backend options as above. The job directory receives:
 
 | File | Content |
 |---|---|
