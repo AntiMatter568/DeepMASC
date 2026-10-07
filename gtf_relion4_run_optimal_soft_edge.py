@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from eval_refinement_mask import add_criterion_arguments
+from soft_edge_mask import add_edt_backend_arguments
 from optimal_soft_edge_relion import run_soft_edge_search
 
 if __name__ == "__main__":
@@ -67,6 +68,7 @@ if __name__ == "__main__":
         help="Number of threads for relion_mask_create (engine relion)",
     )
 
+    add_edt_backend_arguments(parser)
     add_criterion_arguments(parser)
 
     args, unknown = parser.parse_known_args()
@@ -84,6 +86,8 @@ if __name__ == "__main__":
     print("[GTF_DEBUG] engine              : %s" % args.engine)
     print("[GTF_DEBUG] relion_bin          : %s" % args.relion_bin)
     print("[GTF_DEBUG] n_threads           : %s" % args.n_threads)
+    print("[GTF_DEBUG] edt_backend         : %s" % args.edt_backend)
+    print("[GTF_DEBUG] taichi_arch         : %s" % args.taichi_arch)
     print("[GTF_DEBUG] reference_fsc       : %s" % args.reference_fsc)
     print("[GTF_DEBUG] reference_threshold : %s" % args.reference_threshold)
     print("[GTF_DEBUG] margin_shells       : %s" % args.margin_shells)
@@ -112,6 +116,8 @@ if __name__ == "__main__":
         engine=args.engine,
         n_threads=args.n_threads,
         relion_bin=args.relion_bin,
+        edt_backend=args.edt_backend,
+        taichi_arch=args.taichi_arch,
         reference_fsc=args.reference_fsc,
         reference_threshold=args.reference_threshold,
         margin_shells=args.margin_shells,

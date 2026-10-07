@@ -10,6 +10,7 @@ import sys
 
 from soft_edge_mask import (
     add_soft_edge_arguments,
+    EdtBackendError,
     resolve_soft_edge,
     touches_box,
     voxel_size_of,
@@ -51,6 +52,8 @@ def run(parser, args):
     print("[GTF_DEBUG] ini_threshold       : %s" % args.ini_threshold)
     print("[GTF_DEBUG] preset              : %s" % args.preset)
     print("[GTF_DEBUG] resolution          : %s" % args.resolution)
+    print("[GTF_DEBUG] edt_backend         : %s" % args.edt_backend)
+    print("[GTF_DEBUG] taichi_arch         : %s" % args.taichi_arch)
 
     assert os.path.exists(inargs_mask), (
         f"# Logical Error: Input mask file ({inargs_mask}) must exist."
@@ -61,9 +64,13 @@ def run(parser, args):
 
     print("[GTF_DEBUG] Creating the soft mask...")
     output_mask = os.path.join(outargs_rpath, "soft_mask.mrc")
-    soft = write_soft_mask(
-        inargs_mask, output_mask, width_px, extend=padding_px, ini_threshold=args.ini_threshold
-    )
+    try:
+        soft = write_soft_mask(
+            inargs_mask, output_mask, width_px, extend=padding_px, ini_threshold=args.ini_threshold,
+            edt_backend=args.edt_backend, taichi_arch=args.taichi_arch,
+        )
+    except EdtBackendError as e:
+        parser.error(str(e))
     touches = touches_box(soft)
     print(
         "[GTF_DEBUG] width %g px (%g A), padding %g px (%g A), voxel size %g A, touches box face: %s"

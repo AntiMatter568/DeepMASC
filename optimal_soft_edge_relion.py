@@ -9,7 +9,16 @@ import numpy as np
 import pandas as pd
 
 from eval_refinement_mask import add_criterion_arguments, evaluate_refinement_mask
-from soft_edge_mask import INI_THRESHOLD, touches_box, write_soft_mask
+from soft_edge_mask import (
+    DEFAULT_EDT_BACKEND,
+    DEFAULT_TAICHI_ARCH,
+    EDT_BACKENDS,
+    INI_THRESHOLD,
+    TAICHI_ARCHS,
+    SoftEdgeDistance,
+    add_edt_backend_arguments,
+    touches_box,
+)
 
 START_WIDTH = 5
 STEP_WIDTH = 5
@@ -35,11 +44,17 @@ def _tool(name, relion_bin):
 
 
 def create_soft_mask(
-    input_map_path, output_mrc, width, extend_inimask, engine, n_threads, relion_bin=None
-):
-    """Write the soft mask for one width: distance transform (default) or relion_mask_create."""
+    input_map_path, output_mrc, width, extend_inimask, engine, n_threads, relion_bin=None,
+    distance=None,
+):  # fmt: skip
+    """Write the soft mask for one width: distance transform (default) or relion_mask_create.
+
+    `distance` is the SoftEdgeDistance of the mask that the widths of a search share (engine distance).
+    """
     if engine == "distance":
-        write_soft_mask(input_map_path, output_mrc, width, extend=extend_inimask)
+        if distance is None:
+            distance = SoftEdgeDistance(input_map_path, extend=extend_inimask)
+        distance.write(output_mrc, width)
         return
     cmd = [
         _tool("relion_mask_create", relion_bin),
@@ -85,7 +100,7 @@ def _box_size(path):
 
 def _evaluate_width(
     width, input_map_path, half1, emdid, output_folder, extend_inimask, engine,
-    n_threads, relion_bin, angpix, criterion,
+    n_threads, relion_bin, angpix, criterion, distance=None,
 ):  # fmt: skip
     """Soft mask, postprocess and evaluation for one width; the result is kept in cell.json.
 
@@ -104,7 +119,7 @@ def _evaluate_width(
 
     mask_mrc = os.path.join(width_dir, f"{emdid}_soft_edge_{width}.mrc")
     create_soft_mask(
-        input_map_path, mask_mrc, width, extend_inimask, engine, n_threads, relion_bin
+        input_map_path, mask_mrc, width, extend_inimask, engine, n_threads, relion_bin, distance
     )
     with mrcfile.open(mask_mrc, permissive=True) as f:
         touched = touches_box(np.asarray(f.data))
@@ -134,6 +149,8 @@ def run_soft_edge_search(
     engine: str = "distance",
     n_threads: int | None = None,
     relion_bin: str | None = None,
+    edt_backend: str = DEFAULT_EDT_BACKEND,
+    taichi_arch: str = DEFAULT_TAICHI_ARCH,
     half_map_2: str | None = None,
     angpix: float | None = None,
     reference_fsc: str = "masked",
@@ -162,6 +179,9 @@ def run_soft_edge_search(
         engine: "distance" (distance transform, same values as relion_mask_create) or "relion"
         n_threads: Number of threads for relion_mask_create
         relion_bin: Directory holding the RELION binaries (default: found on PATH)
+        edt_backend: Distance transform of engine "distance": "scipy" (default), "taichi" (optional
+            package; an error if it is unavailable) or "auto" (Taichi if it starts, else scipy)
+        taichi_arch: Taichi device: "cpu" (n_threads threads), "cuda" or "auto" (default)
         half_map_2: Path to half map 2 (default: half 1 name with _half1 -> _half2 / _halfA -> _halfB)
         angpix: Pixel size for relion_postprocess (default: read from the half map header)
         reference_fsc: "masked" (default) or "unmasked": FSC of the clause 1 reference crossing
@@ -173,6 +193,12 @@ def run_soft_edge_search(
     """
     if engine not in ("distance", "relion"):
         raise ValueError(f"engine must be 'distance' or 'relion', not {engine!r}")
+    if edt_backend not in EDT_BACKENDS:
+        raise ValueError(f"edt_backend must be one of {EDT_BACKENDS}, not {edt_backend!r}")
+    if taichi_arch not in TAICHI_ARCHS:
+        raise ValueError(f"taichi_arch must be one of {TAICHI_ARCHS}, not {taichi_arch!r}")
+    if engine == "relion" and edt_backend == "taichi":
+        raise ValueError("edt_backend 'taichi' applies to engine 'distance', not to relion_mask_create")
     if reference_fsc not in ("masked", "unmasked"):
         raise ValueError(f"reference_fsc must be 'masked' or 'unmasked', not {reference_fsc!r}")
     if reference_threshold not in (0.143, 0.5):
@@ -208,6 +234,13 @@ def run_soft_edge_search(
     box = _box_size(input_map_path)
     print(f"Soft edge search: widths {START_WIDTH}, {START_WIDTH + STEP_WIDTH} ... px")
     print(f"  Extend inimask: {extend_inimask} px, engine: {engine}, box: {box} px")
+    distance = None
+    if engine == "distance":
+        print(f"  Distance transform: {edt_backend} (Taichi arch {taichi_arch})")
+        distance = SoftEdgeDistance(
+            input_map_path, extend=extend_inimask, edt_backend=edt_backend,
+            taichi_arch=taichi_arch, threads=n_threads,
+        )
     print(
         f"  PRFSC reference: {reference_fsc} FSC at {reference_threshold}, "
         f"margin {criterion['margin_shells']} shells"
@@ -219,7 +252,7 @@ def run_soft_edge_search(
         print(f"\nProcessing soft edge width: {width}")
         cell = _evaluate_width(
             width, input_map_path, half1, emdid, output_folder, extend_inimask, engine,
-            n_threads, relion_bin, angpix, criterion,
+            n_threads, relion_bin, angpix, criterion, distance,
         )  # fmt: skip
         cells.append(cell)
         print(f"  {'PASS' if cell['prfsc_pass'] else 'FAIL'}")
@@ -235,12 +268,12 @@ def run_soft_edge_search(
         width += STEP_WIDTH
 
     return _summarize(
-        cells, stop_reason, emdid, output_folder, extend_inimask, engine, criterion
+        cells, stop_reason, emdid, output_folder, extend_inimask, engine, criterion, edt_backend
     )
 
 
 def _summarize(
-    cells, stop_reason, emdid, output_folder, extend_inimask, engine, criterion
+    cells, stop_reason, emdid, output_folder, extend_inimask, engine, criterion, edt_backend
 ):
     """Keep the chosen soft mask only, write the per-width table and the summary."""
     chosen = cells[-1]
@@ -268,6 +301,7 @@ def _summarize(
         "optimal_extend_inimask": extend_inimask,
         "extend_inimask": extend_inimask,
         "engine": engine,
+        "edt_backend": edt_backend,
         **criterion,
         "optimal_reference_res": float(chosen.get("reference_res", nan)),
         "optimal_masked_res_0_143": float(chosen.get("masked_res_0_143", nan)),
@@ -320,6 +354,7 @@ if __name__ == "__main__":
     parser.add_argument("--engine", choices=["distance", "relion"], default="distance",
                         help="Soft mask engine: distance transform (default, same values as "
                         "relion_mask_create) or relion_mask_create")  # fmt: skip
+    add_edt_backend_arguments(parser)
     parser.add_argument("--relion_bin", type=str, default=None,
                         help="Directory with the RELION binaries (default: PATH)")  # fmt: skip
     parser.add_argument("--angpix", type=float, default=None,
@@ -338,6 +373,8 @@ if __name__ == "__main__":
             engine=args.engine,
             n_threads=args.n_threads,
             relion_bin=args.relion_bin,
+            edt_backend=args.edt_backend,
+            taichi_arch=args.taichi_arch,
             half_map_2=args.half_map_2,
             angpix=args.angpix,
             reference_fsc=args.reference_fsc,
@@ -348,6 +385,6 @@ if __name__ == "__main__":
             f"\nFINAL RESULT: soft edge width {summary['optimal_soft_edge_width']} px, "
             f"{'pass' if summary['prfsc_pass'] else 'no passing width'} ({summary['stop_reason']})"
         )
-    except (FileNotFoundError, subprocess.CalledProcessError, RuntimeError) as e:
+    except (FileNotFoundError, subprocess.CalledProcessError, RuntimeError) as e:  # EdtBackendError is a RuntimeError
         print(f"Error: {e}")
         exit(1)
