@@ -283,9 +283,20 @@ def gmm_mask(
         map_data_zoomed = zoom(
             map_data, zoom_factor, order=3, mode="grid-constant", grid_mode=False
         )
-        data_normalized_zoomed = (map_data_zoomed - map_data_zoomed.min()) * 2 / (
-            map_data_zoomed.max() - map_data_zoomed.min()
-        ) - 1
+        # The cubic spline rings outside the spherical pre-mask (values near 0, gradient 0) where the
+        # full-resolution array is exactly 0; re-mask the zoomed array by its own sphere so the fit
+        # array holds only voxels the predict array also has.
+        if mask_diameter != 0:
+            map_data_zoomed = np.where(
+                create_spherical_mask(map_data_zoomed.shape, radius=mask_diameter), map_data_zoomed, 0
+            ).astype(map_data_zoomed.dtype, copy=False)
+        # Scale the fit array with the full-resolution array's constants, so one density value
+        # has one feature value in the array the VBGMM is fitted on and the one it predicts on.
+        # (cubic over- and undershoot leaves the full-resolution range; img_as_ubyte refuses values
+        # past +-1, so the image the gradient is taken on is clipped to that range)
+        data_normalized_zoomed = np.clip((map_data_zoomed - map_data.min()) * 2 / (
+            map_data.max() - map_data.min()
+        ) - 1, -1, 1)
         non_zero_data_zoomed = map_data_zoomed[np.nonzero(map_data_zoomed)]
 
         logger.info(f"Shape after resample: {data_normalized_zoomed.shape}")
@@ -300,8 +311,8 @@ def gmm_mask(
         ) / (local_grad_norm_zoomed.max() - local_grad_norm_zoomed.min())
 
         non_zero_data_normalized_zoomed = (
-            non_zero_data_zoomed - non_zero_data_zoomed.min()
-        ) / (non_zero_data_zoomed.max() - non_zero_data_zoomed.min())
+            non_zero_data_zoomed - non_zero_data.min()
+        ) / (non_zero_data.max() - non_zero_data.min())
 
         local_grad_norm_zoomed = np.reshape(local_grad_norm_zoomed, (-1, 1))
         non_zero_data_normalized_zoomed = np.reshape(
